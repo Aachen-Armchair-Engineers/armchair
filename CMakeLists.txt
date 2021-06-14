@@ -10,6 +10,7 @@ project(armchair)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
+  geometry_msgs
   depthai_ros_msgs
 )
 
@@ -160,7 +161,7 @@ include_directories(
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
  catkin_install_python(PROGRAMS
-   scripts/sender.py scripts/receiver.py
+   scripts/tf_pub.py scripts/receiver.py scripts/move_robot.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 
