@@ -22,12 +22,12 @@ pub = rospy.Publisher('armchair/door_position', PointStamped, queue_size=10)
 
 def callback(data):
     for detection in data.detections:
-        if detection.results[0].id == 0:
+        if labels[detection.results[0].id] == "cup":
             rospy.loginfo("%s (%2f, %2f, %2f)", labels[detection.results[0].id], detection.position.x, detection.position.y, detection.position.z)
             point_stamped = PointStamped()
             point_stamped.header.stamp = rospy.Time.now()
             point_stamped.header.frame_id = "oak-d_frame"
-            point_stamped.point = Point(detection.position.x, detection.position.y, detection.position.z)
+            point_stamped.point = Point(detection.position.x, detection.position.z, detection.position.y)
             pub.publish(point_stamped)
             #rate.sleep()
 
