@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+	<include file="$(find depthai_examples)/launch/yolov4_publisher.launch"/>
+	<include file="$(find kinova_bringup)/launch/kinova_robot.launch"/>
+
+	<node pkg="tf" type="static_transform_publisher" name="root2oak_bcast" args= "0.0 -0.2 0.1 0.0 3.14 3.14 root oak-d_frame 100"/>
+
+	<include file="$(find j2n6s300_moveit_config)/launch/j2n6s300_demo.launch" />
+
+	<node pkg="armchair" name="receiver" type="receiver.py" />
+	<node pkg="armchair" name="move_robot" type="move_robot.py" />
+</launch>
