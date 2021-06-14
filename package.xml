@@ -20,13 +20,14 @@
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
   <!-- <url type="website">http://wiki.ros.org/armchair</url> -->
-
+  <!-- <url type="website">https://www.our-project-blog.org</url> -->
+  <url type="repository">https://github.com/Aachen-Armchair-Engineers/armchair</url>
 
   <!-- Author tags are optional, multiple are allowed, one per tag -->
   <!-- Authors do not have to be maintainers, but could be -->
   <!-- Example: -->
   <!-- <author email="jane.doe@example.com">Jane Doe</author> -->
-
+  <author email="f.reuter@autak.org">Felix Reuter</author>
 
   <!-- The *depend tags are used to specify dependencies -->
   <!-- Dependencies can be catkin packages or system dependencies -->
@@ -49,11 +50,16 @@
   <!-- Use doc_depend for packages you need only for building documentation: -->
   <!--   <doc_depend>doxygen</doc_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>rospy</build_depend>
-  <build_depend>depthai_ros_msgs</build_depend>
-  <build_export_depend>rospy</build_export_depend>
-  <exec_depend>rospy</exec_depend>
 
+  <build_depend>rospy</build_depend>
+  <build_depend>kinova_description</build_depend>
+  <build_depend>kinova_bringup</build_depend>
+  <build_depend>depthai_examples</build_depend>
+  <build_depend>depthai_ros_msgs</build_depend>
+  
+  <build_export_depend>rospy</build_export_depend>
+
+  <exec_depend>rospy</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
