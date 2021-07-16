@@ -1,5 +1,7 @@
 <?xml version="1.0"?>
 <launch>
+	<remap from="/j2n6s300_driver/out/joint_state" to="/joint_states"/>
+
 	<include file="$(find depthai_examples)/launch/yolov4_publisher.launch"/>
 	<include file="$(find kinova_bringup)/launch/kinova_robot.launch"/>
 
