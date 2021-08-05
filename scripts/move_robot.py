@@ -6,6 +6,7 @@ import rospy
 import moveit_commander
 import moveit_msgs.msg
 import geometry_msgs.msg
+import tf2_ros
 
 from math import pi, tau, dist, fabs, cos
 
