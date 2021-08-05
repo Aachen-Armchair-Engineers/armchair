@@ -13,6 +13,7 @@ import moveit_msgs.msg
 from moveit_commander.conversions import pose_to_list
 from tf.transformations import quaternion_from_euler
 
+robot = None
 arm_group = None
 gripper_group = None
 
@@ -23,13 +24,12 @@ last_pos = None
 
 target_frame = None 
 
+
 def init_robot():
-    global arm_group, gripper_group, last_pos, target_frame
+    global arm_group, gripper_group, last_pos, target_frame, robot
 
     moveit_commander.roscpp_initialize(sys.argv)
-
     robot = moveit_commander.RobotCommander()
-
     scene = moveit_commander.PlanningSceneInterface()
 
     arm_group =  moveit_commander.MoveGroupCommander("arm")
@@ -38,12 +38,63 @@ def init_robot():
     arm_group.set_max_velocity_scaling_factor(0.3)
 
     target_frame = arm_group.get_planning_frame()
-
     rospy.loginfo("Robot planning frame is %s" % target_frame)
 
-#    last_pos = arm_group.get_current_pose().pose.position
 
-#pub = rospy.Publisher('armchair/door_position_tf', PointStamped, queue_size=10)
+def get_robot_info():
+    #display_trajectory_publisher = rospy.Publisher(
+    #    "/move_group/display_planned_path",
+    #    moveit_msgs.msg.DisplayTrajectory,
+    #    queue_size=20,
+    #)
+
+    # We can get the name of the reference frame for this robot:
+    planning_frame = arm_group.get_planning_frame()
+    rospy.logdebug("============ Planning frame: %s" % planning_frame)
+
+    # We can also print the name of the end-effector link for this group:
+    eef_link = arm_group.get_end_effector_link()
+    rospy.logdebug("============ End effector link: %s" % eef_link)
+
+    # We can get a list of all the groups in the robot:
+    group_names = robot.get_group_names()
+    rospy.logdebug("============ Available Planning Groups:", robot.get_group_names())
+
+    # Sometimes for debugging it is useful to print the entire state of the
+    # robot:
+    rospy.logdebug("============ Printing robot state")
+    rospy.logdebug(robot.get_current_state())
+    rospy.logdebug("")
+
+    rospy.logdebug("Arm_pose:")
+    rospy.logdebug(arm_group.get_current_pose())
+    rospy.logdebug("Gripper joints:")
+    rospy.logdebug(gripper_group.get_current_joint_values())
+
+def move_robot_test():
+    rospy.logdebug.logdebug("Moving arm")
+    pose = arm_group.get_current_pose().pose
+    pose.position.x += 0.1
+    arm_group.set_pose_target(pose)
+    arm_group.plan()
+    arm_group.go(wait=True)
+    pose.position.y += 0.1
+    arm_group.set_pose_target(pose)
+    arm_group.go(wait=True)
+    pose.position.z += 0.1
+    arm_group.set_pose_target(pose)
+    arm_group.go(wait=True)
+    rospy.logdebug("finished")
+
+    rospy.logdebug("Moving Gripper")
+    joint_goal = [0.5, 0.5, 0.5]
+    gripper_group.go(joint_goal, wait=True)
+    joint_goal = [0.0, 0.0, 0.0]
+    gripper_group.go(joint_goal, wait=True)
+    gripper_group.set_joint_value_target("j2n6s300_joint_finger_1", 0.5)
+    gripper_group.set_joint_value_target("j2n6s300_joint_finger_2", 0.0)
+    gripper_group.go(wait=True)
+    rospy.logdebug("Finished")
 
 def robot_open_hand():
     joint_goal = [0.5, 0.5, 0.5]
@@ -80,7 +131,7 @@ def robot_plan_with_offset(offset = 0.0):
     arm_group.plan()
 
 def robot_plan_homing():
-    print ("")
+    rospy.logwarn("NOT IMPLEMENTED YET")
 
 def robot_go():
     arm_group.go(wait=True)

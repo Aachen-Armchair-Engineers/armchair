@@ -152,7 +152,6 @@ include_directories(
 
 
 add_library(${PROJECT_NAME} lib/nn_pipeline.cpp)
-#add_library(${PROJECT_NAME} src/mobilenet_publisher.cpp)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -247,7 +246,7 @@ dai_add_node(armchair_mobilenet_node src/mobilenet_publisher.cpp)
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
  catkin_install_python(PROGRAMS
-   scripts/receiver.py scripts/move_robot.py scripts/robot_listener.py
+   scripts/receiver.py scripts/robot_listener.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 
