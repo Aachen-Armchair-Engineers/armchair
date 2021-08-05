@@ -4,6 +4,10 @@ project(armchair)
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
 
+#Use C++14
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -12,11 +16,30 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   depthai_ros_msgs
+
+  camera_info_manager
+  depthai_ros_msgs
+  roscpp
+  sensor_msgs
+  std_msgs
+  cv_bridge
+  vision_msgs
+  depthai_bridge
+  message_filters
+  nodelet
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
+set(_opencv_version 4)
+find_package(OpenCV 4 QUIET COMPONENTS imgproc highgui)
+if(NOT OpenCV_FOUND)
+  message(STATUS "----------------Did not find OpenCV 4, trying OpenCV 3--------------")
+  set(_opencv_version 3)
+  find_package(OpenCV 3 REQUIRED COMPONENTS imgproc highgui)
+endif()
+find_package(depthai REQUIRED)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -104,10 +127,10 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES armchair
-#  CATKIN_DEPENDS rospy
-#  DEPENDS system_lib
+  INCLUDE_DIRS include
+  LIBRARIES ${PROJECT_NAME}
+  CATKIN_DEPENDS depthai_ros_msgs roscpp sensor_msgs std_msgs camera_info_manager depthai_bridge vision_msgs cv_bridge message_filters
+  DEPENDS OpenCV
 )
 
 ###########
@@ -117,14 +140,19 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include
   ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/armchair.cpp
 # )
+
+
+add_library(${PROJECT_NAME} lib/nn_pipeline.cpp)
+#add_library(${PROJECT_NAME} src/mobilenet_publisher.cpp)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -146,10 +174,68 @@ include_directories(
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
+#add_dependencies(${PROJECT_NAME} include/nn_pipeline.cpp)
+
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
+
+#
+#add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS}
+#  ${catkin_EXPORTED_TARGETS} 
+#)
+
+target_link_libraries(${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+  depthai::core
+  opencv_imgproc
+  opencv_highgui
+)
+
+#add_library(nodelet_stereo src/stereo_nodelet.cpp)
+#
+#add_dependencies(nodelet_stereo ${${PROJECT_NAME}_EXPORTED_TARGETS}
+#  ${catkin_EXPORTED_TARGETS} 
+#  ${PROJECT_NAME}
+#)
+
+#target_link_libraries(nodelet_stereo
+#  ${catkin_LIBRARIES}
+#  depthai::core
+#  ${PROJECT_NAME}
+#  opencv_imgproc
+#  opencv_highgui
+#)
+#
+#target_link_options(nodelet_stereo PRIVATE
+#  -Wl,--no-undefined
+#)
+
+target_link_options(${PROJECT_NAME} PRIVATE
+  -Wl,--no-undefined
+)
+
+macro(dai_add_node node_name node_src)
+    add_executable("${node_name}" "${node_src}")
+    
+    add_dependencies("${node_name}"
+      ${catkin_EXPORTED_TARGETS} 
+      ${${PROJECT_NAME}_EXPORTED_TARGETS}
+      ${PROJECT_NAME} 
+    )
+
+    target_link_libraries("${node_name}" 
+      ${catkin_LIBRARIES}
+      depthai::core
+      ${PROJECT_NAME}
+      opencv_imgproc
+      opencv_highgui
+    )
+    
+endmacro() 
+
+dai_add_node(armchair_mobilenet_node src/mobilenet_publisher.cpp)
 
 #############
 ## Install ##
@@ -205,3 +291,8 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+#FIXME: Doesn't work
+#set(mobilenet_blob "${PROJECT_SOURCE_DIR}/resources/mobilenet-ssd_openvino_2021.2_6shave.blob")
+set(mobilenet_blob "${PROJECT_SOURCE_DIR}/resources/armchair.blob")
+target_compile_definitions(armchair_mobilenet_node PRIVATE BLOB_PATH="${mobilenet_blob}")
