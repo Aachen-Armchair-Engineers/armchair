@@ -1,9 +1,5 @@
-
 #include <armchair/nn_pipeline.hpp>
 #include "depthai/depthai.hpp"
-
-//const std::vector<std::string> DoorDetectionPipeline::label_map = {"", "door", "handle", "cabinet door", "refridgerator door"};
-
 
 void DoorDetectionPipeline::initDepthaiDev(std::string nnPath, int width, int height){
 
@@ -15,7 +11,6 @@ void DoorDetectionPipeline::initDepthaiDev(std::string nnPath, int width, int he
     auto xlinkOut = _p.create<dai::node::XLinkOut>();
     auto xoutDepth = _p.create<dai::node::XLinkOut>();
 
-    //auto detectionNetwork = _p.create<dai::node::MobileNetDetectionNetwork>();
     auto spatialDetectionNetwork = _p.create<dai::node::MobileNetSpatialDetectionNetwork>();
     auto nnOut = _p.create<dai::node::XLinkOut>();
 
@@ -29,14 +24,9 @@ void DoorDetectionPipeline::initDepthaiDev(std::string nnPath, int width, int he
     colorCam->setColorOrder(dai::ColorCameraProperties::ColorOrder::BGR);
     colorCam->setFps(40);
 
-    // testing MobileNet DetectionNetwork
-    //detectionNetwork->setConfidenceThreshold(0.5f);
-    //detectionNetwork->setBlobPath(nnPath);
-
     stereo->setConfidenceThreshold(255);
     stereo->setSubpixel(false);
 
-    //spatial
     spatialDetectionNetwork->setBlobPath(nnPath);
     spatialDetectionNetwork->setConfidenceThreshold(0.5f);
     spatialDetectionNetwork->input.setBlocking(false);
@@ -44,7 +34,6 @@ void DoorDetectionPipeline::initDepthaiDev(std::string nnPath, int width, int he
     spatialDetectionNetwork->setDepthLowerThreshold(100);
     spatialDetectionNetwork->setDepthUpperThreshold(5000);
 
-    //spatialDetectionNetwork->setNumClasses(4);
     // Link plugins CAM -> STEREO -> XLINK
     monoLeft->out.link(stereo->left);
     monoRight->out.link(stereo->right);

@@ -5,7 +5,7 @@
 #endif
 */
 
-//TODO: Use launch option?
+//TODO: Use launch option
 #if 0
 #define BLOB_PATH "/home/felix/ros_ws/src/armchair/resources/armchair.blob"
 #define WIDTH 320
@@ -21,7 +21,6 @@
 #include <iostream>
 #include <cstdio>
 
-//#include <depthai_examples/nn_pipeline.hpp>
 #include <armchair/nn_pipeline.hpp>
 
 #include "sensor_msgs/Image.h"
@@ -32,7 +31,6 @@
 #include <depthai_bridge/ImageConverter.hpp>
 #include <depthai_bridge/ImgDetectionConverter.hpp>
 
-//#include <depthai_bridge/SpatialImageConverter.hpp>
 #include <depthai_bridge/SpatialDetectionConverter.hpp>
 
 // Inludes common necessary includes for development using depthai library
@@ -48,7 +46,6 @@ int main(int argc, char** argv){
     std::string camera_param_uri;
     std::string nnPath(BLOB_PATH);
 
-    ROS_INFO("init");
     ROS_INFO("Using nn at path %s", nnPath.c_str());
     
     int bad_params = 0;
@@ -82,19 +79,6 @@ int main(int argc, char** argv){
                                                                                      color_uri,
                                                                                      "color");
 
-/*
-    dai::rosBridge::ImgDetectionConverter detConverter(deviceName + "_rgb_camera_optical_frame", 320, 320, false);
-    dai::rosBridge::BridgePublisher<vision_msgs::Detection2DArray, dai::ImgDetections> detectionPublish(nNetDataQueues[0],
-                                                                                                         pnh, 
-                                                                                                         std::string("color/mobilenet_detections"),
-                                                                                                         std::bind(static_cast<void(dai::rosBridge::ImgDetectionConverter::*)(std::shared_ptr<dai::ImgDetections>, 
-                                                                                                         vision_msgs::Detection2DArray&)>(&dai::rosBridge::ImgDetectionConverter::toRosMsg), 
-                                                                                                         &detConverter,
-                                                                                                         std::placeholders::_1, 
-                                                                                                         std::placeholders::_2) , 
-                                                                                                         30);
-*/
-
     dai::rosBridge::SpatialDetectionConverter detConverter(deviceName + "_rgb_camera_optical_frame", WIDTH, HEIGHT, false);
     dai::rosBridge::BridgePublisher<depthai_ros_msgs::SpatialDetectionArray, dai::SpatialImgDetections> detectionPublish(nNetDataQueues[0],
                                                                                                          pnh, 
@@ -122,10 +106,6 @@ int main(int argc, char** argv){
     detectionPublish.startPublisherThread();
     rgbPublish.addPubisherCallback(); // addPubisherCallback works only when the dataqueue is non blocking.
     depthPublish.addPubisherCallback();
-
-
-    ROS_INFO("SPINNING");
-
 
     ros::spin();
 

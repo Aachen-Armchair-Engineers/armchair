@@ -1,10 +1,12 @@
 <?xml version="1.0"?>
 <launch>
+	
 	<!--
 		<remap from="/j2n6s300_driver/out/joint_state" to="/joint_states"/>
 		<remap from="/joint_states" to="/j2n6s300_driver/out/joint_state" />
 	-->
 
+<!-- Choose either yolo (for testing) or mobilenet (for testing with the example network and the door application) -->
 	<!-- <include file="$(find depthai_examples)/launch/yolov4_publisher.launch"/> -->	
 	<include file="$(find armchair)/launch/mobile_publisher.launch"/>
 	
@@ -12,18 +14,10 @@
 
 	<include file="$(find kinova_bringup)/launch/kinova_robot.launch"/>
 
-
-	<!--
-	<include file="$(find j2n6s300_moveit_config)/launch/j2n6s300_demo.launch" />
-	-->
+	<!-- <include file="$(find j2n6s300_moveit_config)/launch/j2n6s300_demo.launch" /> -->
 	<include file="$(find j2n6s300_moveit_config)/launch/j2n6s300_virtual_robot_demo.launch" />
 
 	<node pkg="armchair" name="receiver" type="receiver.py" />
-	<!-- <node pkg="armchair" name="move_robot" type="move_robot.py" /> -->
 	<!-- <node pkg="armchair" name="robot_listener" type="robot_listener.py" /> -->
-
-	<!--
-	<node pkg="armchair" name="move_robot" type="move_robot.py" />
-	-->
-
+	
 </launch>

@@ -6,9 +6,6 @@
 class DoorDetectionPipeline{
 
     public:
-
-//    static const std::vector<std::string> label_map ;
-
     DoorDetectionPipeline() = default;
     ~DoorDetectionPipeline() = default;
 
