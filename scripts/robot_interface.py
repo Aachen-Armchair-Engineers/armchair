@@ -146,7 +146,6 @@ def pos_callback(data):
 
 #called once we send a signal manually to plan&move 
 def btn_callback(data):
-    rospy.loginfo("WWWWW")
     rospy.loginfo(data)
     if data.data == 0:
         rospy.loginfo("received plan signal for offset pos")
@@ -176,7 +175,7 @@ def btn_callback(data):
 def listener():
     global tfBuffer, tfListener
 
-    rospy.init_node('robot_listener', anonymous=True)
+    rospy.init_node('robot_interface', anonymous=True)
     rate = rospy.Rate(10)
 
     tfBuffer = tf2_ros.Buffer()
@@ -186,8 +185,8 @@ def listener():
 
     rospy.loginfo("Starting robot listening")
 
-    rospy.Subscriber('armchair/door_position', PointStamped, pos_callback)
-    rospy.Subscriber('armchair/button', Int32, btn_callback)
+    rospy.Subscriber('armchair/handle_position', PointStamped, pos_callback)
+    rospy.Subscriber('armchair/cmd', Int32, btn_callback)
 
     rospy.spin()
 

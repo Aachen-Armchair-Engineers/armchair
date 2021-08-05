@@ -57,7 +57,7 @@ target_label = "bottle"
 #labels = ["", "door", "handle", "cabinet door", "refridgerator door"]
 #target_label = "handle"
 
-pub = rospy.Publisher('/armchair/door_position', PointStamped, queue_size=10)
+pub = rospy.Publisher('/armchair/handle_position', PointStamped, queue_size=10)
 pub_markers = rospy.Publisher("/mobilenet_node_custom/color/markers", ImageMarkerArray, queue_size=1)
 
 def callback(data):
@@ -134,10 +134,10 @@ def callback(data):
     #rate.sleep()
 
 def listener():
-    rospy.init_node('receiver', anonymous=True)
+    rospy.init_node('camera_interface', anonymous=True)
     rate = rospy.Rate(10)
     #rospy.Subscriber("/yolov4_publisher/color/yolov4_Spatial_detections", SpatialDetectionArray, callback)
-    rospy.Subscriber("/mobilenet_node_custom/color/mobilenet_detections", SpatialDetectionArray, callback)
+    rospy.Subscriber("/mobilenet_node_custom/color/spatial_detections", SpatialDetectionArray, callback)
 
     rospy.spin()
 

@@ -82,7 +82,7 @@ int main(int argc, char** argv){
     dai::rosBridge::SpatialDetectionConverter detConverter(deviceName + "_rgb_camera_optical_frame", WIDTH, HEIGHT, false);
     dai::rosBridge::BridgePublisher<depthai_ros_msgs::SpatialDetectionArray, dai::SpatialImgDetections> detectionPublish(nNetDataQueues[0],
                                                                                                          pnh, 
-                                                                                                         std::string("color/mobilenet_detections"),
+                                                                                                         std::string("color/spatial_detections"),
                                                                                                          std::bind(static_cast<void(dai::rosBridge::SpatialDetectionConverter::*)(std::shared_ptr<dai::SpatialImgDetections>, 
                                                                                                          depthai_ros_msgs::SpatialDetectionArray&)>(&dai::rosBridge::SpatialDetectionConverter::toRosMsg), 
                                                                                                          &detConverter,

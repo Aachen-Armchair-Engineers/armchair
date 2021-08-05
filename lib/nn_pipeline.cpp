@@ -46,7 +46,6 @@ void DoorDetectionPipeline::initDepthaiDev(std::string nnPath, int width, int he
     //passthrough depth
     spatialDetectionNetwork->passthroughDepth.link(xoutDepth->input);
 
-
     //if(syncNN) detectionNetwork->passthrough.link(xlinkOut->input);
     if(syncNN) spatialDetectionNetwork->passthrough.link(xlinkOut->input);
     else colorCam->preview.link(xlinkOut->input);
@@ -54,7 +53,7 @@ void DoorDetectionPipeline::initDepthaiDev(std::string nnPath, int width, int he
     ///detectionNetwork->out.link(nnOut->input);
     spatialDetectionNetwork->out.link(nnOut->input);
 
-    
+
     _dev = std::make_unique<dai::Device>(_p);
     _dev->startPipeline();
 
