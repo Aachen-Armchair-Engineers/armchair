@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 
-from numpy.lib.type_check import mintypecode
-import rospy, tf2_ros
-from std_msgs.msg import String, Header
+import rospy
+from std_msgs.msg import Header, ColorRGBA
 from geometry_msgs.msg import Point, PointStamped
 from depthai_ros_msgs.msg import SpatialDetectionArray
 
 #For visualizing in foxglove
 #See: https://foxglove.dev/blog/annotate-your-robots-camera-images-with-image-markers
-from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import ImageMarker
 from foxglove_msgs.msg import ImageMarkerArray
 
@@ -17,7 +15,6 @@ target_label = ""
 
 def init_labels(model):
     global labels, target_label
-
 
     if model == 'armchair':
         labels = ["", "door", "handle", "cabinet door", "refridgerator door"]
@@ -66,7 +63,6 @@ def init_labels(model):
 
     else:
         rospy.logerr("Invalid neuronal network selected, aborting")
-        exit(0)
 
 pub_handle = rospy.Publisher('/armchair/handle_position', PointStamped, queue_size=10)
 pub_markers = rospy.Publisher("/mobilenet_node_custom/color/markers", ImageMarkerArray, queue_size=1)
@@ -78,28 +74,37 @@ def callback(data):
     markers = ImageMarkerArray()
 
     #TODO: figure out a more pythonic approach for the whole loop
-    for d in data.detections:
+    for detection in data.detections:
         #Find best object
         #Alternatively use the clostest or manually select one
-        if labels[d.results[0].id] == target_label:
-            rospy.logdebug("%s (%2f, %2f, %2f)", labels[d.results[0].id], d.position.x, d.position.y, d.position.z)
+        if labels[detection.results[0].id] == target_label:
+            rospy.logdebug("%s (%2f, %2f, %2f)",
+                    labels[detection.results[0].id],
+                    detection.position.x,
+                    detection.position.y,
+                    detection.position.z
+                )
 
-            if d.results[0].score > highest_score:
+            if detection.results[0].score > highest_score:
                 point_stamped.header.stamp = rospy.Time.now()
                 point_stamped.header.frame_id = "oak-d_frame"
-                point_stamped.point = Point(d.position.x, d.position.z, d.position.y)
-                highest_score = d.results[0].score
-        
+                point_stamped.point = Point(
+                        detection.position.x,
+                        detection.position.z,
+                        detection.position.y
+                    )
+                highest_score = detection.results[0].score
+
 
         #Create markers for all relevant object
-        
-        #Calculate the positions of the bounding box edges
-        vertex_left = d.bbox.center.x - d.bbox.size_x/2
-        vertex_right = d.bbox.center.x + d.bbox.size_x/2
-        vertex_top = d.bbox.center.y - d.bbox.size_y/2
-        vertex_bot = d.bbox.center.y + d.bbox.size_y/2
 
-        #Scale from 320x320 square coordinates to camera image (1280*720) coordinates 
+        #Calculate the positions of the bounding box edges
+        vertex_left = detection.bbox.center.x - detection.bbox.size_x/2
+        vertex_right = detection.bbox.center.x + detection.bbox.size_x/2
+        vertex_top = detection.bbox.center.y - detection.bbox.size_y/2
+        vertex_bot = detection.bbox.center.y + detection.bbox.size_y/2
+
+        #Scale from 320x320 square coordinates to camera image (1280*720) coordinates
         vertex_left *= 1280/320
         vertex_right *= 1280/320
         vertex_top *= 720/320
@@ -113,7 +118,7 @@ def callback(data):
         color.a=1
 
         #Highlight the BBoxes of the targets
-        if labels[d.results[0].id] == target_label:
+        if labels[detection.results[0].id] == target_label:
             color.r=255
             color.g=0
             color.b=0
@@ -139,13 +144,11 @@ def callback(data):
         pub_handle.publish(point_stamped)
 
     pub_markers.publish(markers)
-            
+
     rospy.logdebug("-------")
-    #rate.sleep()
 
 def listener():
     rospy.init_node('camera_interface', anonymous=True)
-    rate = rospy.Rate(10)
 
     model = rospy.get_param("/camera_interface/model")
 
@@ -165,4 +168,3 @@ if __name__ == '__main__':
         listener()
     except rospy.ROSInterruptException:
         pass
-

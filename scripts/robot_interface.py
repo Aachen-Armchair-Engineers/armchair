@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 
 import sys
-import copy
+#from math import pi, tau, dist, fabs, cos
 import rospy
-from math import pi, tau, dist, fabs, cos
-from std_msgs.msg import String, Bool, Int32
-from geometry_msgs.msg import Point, PointStamped, Quaternion
+from std_msgs.msg import Int32
+from geometry_msgs.msg import PointStamped, Quaternion
 import tf2_ros
-from tf2_geometry_msgs import PointStamped
+#from tf2_geometry_msgs import PointStamped
 import moveit_commander
 import moveit_msgs.msg
-from moveit_commander.conversions import pose_to_list
 from tf.transformations import quaternion_from_euler
 
 robot = None
@@ -75,7 +73,7 @@ def get_robot_info():
     rospy.logdebug(gripper_group.get_current_joint_values())
 
 def move_robot_test():
-    rospy.logdebug.logdebug("Moving arm")
+    rospy.logdebug("Moving arm")
     pose = arm_group.get_current_pose().pose
 
     pose.position.x += 0.1
@@ -109,7 +107,7 @@ def robot_plan_with_offset(offset = 0.0):
     global tfBuffer, tfListener
     global target_frame, last_pos
 
-    if last_pos == None:
+    if last_pos is None:
         return
 
     last_pos.header.stamp = rospy.Time.now()
@@ -238,7 +236,7 @@ def listener():
     global tfBuffer, tfListener
 
     rospy.init_node('robot_interface', anonymous=True)
-    rate = rospy.Rate(10)
+    #rate = rospy.Rate(10)
 
     tfBuffer = tf2_ros.Buffer()
     tfListener = tf2_ros.TransformListener(tfBuffer)
