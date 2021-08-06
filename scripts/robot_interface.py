@@ -24,6 +24,15 @@ last_pos = None
 
 target_frame = None 
 
+#TODO: Use this for the entire opening process
+#See: http://docs.ros.org/en/kinetic/api/moveit_tutorials/html/doc/move_group_python_interface/move_group_python_interface_tutorial.html#displaying-a-trajectory
+# https://answers.ros.org/question/278616/how-to-create-a-publisher-about-trajectory-path-then-show-it-in-rviz/
+# http://docs.ros.org/en/kinetic/api/moveit_tutorials/html/doc/move_group_python_interface/move_group_python_interface_tutorial.html
+display_trajectory_publisher = rospy.Publisher(
+       "/move_group/display_planned_path",
+       moveit_msgs.msg.DisplayTrajectory,
+       queue_size=20,
+    )
 
 def init_robot():
     global arm_group, gripper_group, last_pos, target_frame, robot
@@ -38,16 +47,10 @@ def init_robot():
     arm_group.set_max_velocity_scaling_factor(0.3)
 
     target_frame = arm_group.get_planning_frame()
-    rospy.loginfo("Robot planning frame is %s" % target_frame)
+    rospy.logdebug("Robot planning frame is %s" % target_frame)
 
 
 def get_robot_info():
-    #display_trajectory_publisher = rospy.Publisher(
-    #    "/move_group/display_planned_path",
-    #    moveit_msgs.msg.DisplayTrajectory,
-    #    queue_size=20,
-    #)
-
     # We can get the name of the reference frame for this robot:
     planning_frame = arm_group.get_planning_frame()
     rospy.logdebug("============ Planning frame: %s" % planning_frame)
@@ -74,26 +77,24 @@ def get_robot_info():
 def move_robot_test():
     rospy.logdebug.logdebug("Moving arm")
     pose = arm_group.get_current_pose().pose
+
     pose.position.x += 0.1
     arm_group.set_pose_target(pose)
-    arm_group.plan()
+    arm_group.plan() #Why is this not needed for the other move commands?
     arm_group.go(wait=True)
+
     pose.position.y += 0.1
     arm_group.set_pose_target(pose)
     arm_group.go(wait=True)
+
     pose.position.z += 0.1
     arm_group.set_pose_target(pose)
     arm_group.go(wait=True)
     rospy.logdebug("finished")
 
     rospy.logdebug("Moving Gripper")
-    joint_goal = [0.5, 0.5, 0.5]
-    gripper_group.go(joint_goal, wait=True)
-    joint_goal = [0.0, 0.0, 0.0]
-    gripper_group.go(joint_goal, wait=True)
-    gripper_group.set_joint_value_target("j2n6s300_joint_finger_1", 0.5)
-    gripper_group.set_joint_value_target("j2n6s300_joint_finger_2", 0.0)
-    gripper_group.go(wait=True)
+    robot_open_hand()
+    robot_close_hand()
     rospy.logdebug("Finished")
 
 def robot_open_hand():
@@ -133,16 +134,66 @@ def robot_plan_with_offset(offset = 0.0):
 def robot_plan_homing():
     rospy.logwarn("NOT IMPLEMENTED YET")
 
+def robot_plan_circular_motion():
+    rospy.logwarn("NOT IMPLEMENTED YET")
+
+    radius_door = 0.8
+    radius_handle = 0.7
+    directions = ["left", "right"]
+
+    #TODO: How to cartesian a circle
+    # https://answers.ros.org/question/211343/how-to-use-moveit-for-planning-circular-path-with-a-robotic-arm/
+    # http://docs.ros.org/en/jade/api/moveit_ros_planning_interface/html/classmoveit_1_1planning__interface_1_1MoveGroup.html#ad6b02d15000d5b17c89b15a0f744b47c
+
+
 def robot_go():
     arm_group.go(wait=True)
     rospy.loginfo("finished")
 
-#called every time we detect an object
-def pos_callback(data):
-    global last_pos
-    last_pos = data
+def robot_routine():
+    #Move fast to the position before the handle
+    arm_group.set_max_velocity_scaling_factor(0.3)
+
+    robot_plan_with_offset(0.2)
+
+    robot_go()
+
+
+    #Open the gripper
+    robot_open_hand()
+
+
+    #Slowly move the last distance
+    arm_group.set_max_velocity_scaling_factor(0.1)
+
+    robot_plan_with_offset(0.1)
+
+    robot_go()
+
+
+    #close the gripper 
+    robot_close_hand()
+
     
-    #last_pos = tfBuffer.transform(ps, "root").point
+    # Move back to the previous position
+    robot_plan_with_offset(0.2)
+    #TODO: use this instead:
+    #robot_plan_circular_motion()
+
+    robot_go()
+
+
+    #Open the gripper again
+    robot_open_hand()
+
+
+    #Go back into neutral position
+    arm_group.set_max_velocity_scaling_factor(0.3)
+
+    robot_plan_homing()
+
+    robot_go()
+
 
 #called once we send a signal manually to plan&move 
 def btn_callback(data):
@@ -170,6 +221,17 @@ def btn_callback(data):
     elif data.data == 11:
         rospy.loginfo("closing")
         robot_close_hand()
+
+    elif data.data == 20:
+        rospy.loginfo("full routine")
+        robot_routine()
+
+#called every time we detect an object
+def pos_callback(data):
+    global last_pos
+    last_pos = data
+    
+    #last_pos = tfBuffer.transform(ps, "root").point
 
 
 def listener():
