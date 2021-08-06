@@ -21,21 +21,6 @@ def init_labels(model):
         target_label = "handle"
 
     elif model == 'mobilenet':
-        labels = ["person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train",
-                 "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench",
-                 "bird", "cat", "dog", "horse", "sheep", "cow", "elephant",
-                 "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie",
-                 "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat",
-                 "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup",
-                 "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich",
-                 "orange", "broccoli",   "carrot", "hot dog", "pizza", "donut", "cake",
-                 "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor",
-                 "laptop", "mouse", "remote", "keyboard", "cell phone",  "microwave", "oven",
-                 "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors",
-                 "teddy bear", "hair drier", "toothbrush"]
-        target_label = "cup"
-
-    elif model == 'yolov4':
         labels = [
             "background",
             "aeroplane",
@@ -61,6 +46,21 @@ def init_labels(model):
         ]
         target_label = "bottle"
 
+    elif model == 'yolov4':
+        labels = ["person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train",
+                 "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench",
+                 "bird", "cat", "dog", "horse", "sheep", "cow", "elephant",
+                 "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie",
+                 "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat",
+                 "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup",
+                 "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich",
+                 "orange", "broccoli",   "carrot", "hot dog", "pizza", "donut", "cake",
+                 "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor",
+                 "laptop", "mouse", "remote", "keyboard", "cell phone",  "microwave", "oven",
+                 "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors",
+                 "teddy bear", "hair drier", "toothbrush"]
+        target_label = "cup"
+
     else:
         rospy.logerr("Invalid neuronal network selected, aborting")
 
@@ -75,6 +75,7 @@ def callback(data):
 
     #TODO: figure out a more pythonic approach for the whole loop
     for detection in data.detections:
+       
         #Find best object
         #Alternatively use the clostest or manually select one
         if labels[detection.results[0].id] == target_label:
