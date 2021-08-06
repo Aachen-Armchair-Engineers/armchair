@@ -1,21 +1,3 @@
-//FIXME:
-/*
-#ifndef BLOB_PATH
-#define BLOB_PATH "../resources/armchair.blob"
-#endif
-*/
-
-//TODO: Use launch option
-#if 0
-#define BLOB_PATH "/home/felix/ros_ws/src/armchair/resources/armchair.blob"
-#define WIDTH 320
-#define HEIGHT 320
-#else
-#define BLOB_PATH "/home/felix/ros_ws/src/armchair/resources/mobilenet-ssd_openvino_2021.2_6shave.blob"
-#define WIDTH 300
-#define HEIGHT 300
-#endif
-
 #include "ros/ros.h"
 
 #include <iostream>
@@ -44,22 +26,42 @@ int main(int argc, char** argv){
     
     std::string deviceName;
     std::string camera_param_uri;
-    std::string nnPath(BLOB_PATH);
+    std::string nnPath;
+    std::string modelName;
+    int width;
+    int height;
 
-    ROS_INFO("Using nn at path %s", nnPath.c_str());
-    
     int bad_params = 0;
 
     bad_params += !pnh.getParam("camera_name", deviceName);
     bad_params += !pnh.getParam("camera_param_uri", camera_param_uri);
+    bad_params += !pnh.getParam("model", modelName);
 
     if (bad_params > 0)
     {
         throw std::runtime_error("Couldn't find one of the parameters");
     }
 
+
+    if (modelName == "armchair"){
+        nnPath = "/home/felix/ros_ws/src/armchair/resources/armchair.blob";
+        width = 320;
+        height = 320;
+    }
+    else if (modelName == "mobilenet"){
+        nnPath = "/home/felix/ros_ws/src/armchair/resources/mobilenet-ssd_openvino_2021.2_6shave.blob";
+        width = 300;
+        height = 300;
+    }
+    else {
+        throw std::runtime_error("Wrong model specified");
+    }
+
+    ROS_INFO("Using nn at path %s", nnPath.c_str());
+    
+
     DoorDetectionPipeline detectionPipeline;
-    detectionPipeline.initDepthaiDev(nnPath, WIDTH, HEIGHT);
+    detectionPipeline.initDepthaiDev(nnPath, width, height);
     std::vector<std::shared_ptr<dai::DataOutputQueue>> imageDataQueues = detectionPipeline.getExposedImageStreams();
     std::vector<std::shared_ptr<dai::DataOutputQueue>> nNetDataQueues = detectionPipeline.getExposedNnetStreams();;
 
@@ -79,7 +81,7 @@ int main(int argc, char** argv){
                                                                                      color_uri,
                                                                                      "color");
 
-    dai::rosBridge::SpatialDetectionConverter detConverter(deviceName + "_rgb_camera_optical_frame", WIDTH, HEIGHT, false);
+    dai::rosBridge::SpatialDetectionConverter detConverter(deviceName + "_rgb_camera_optical_frame", width, height, false);
     dai::rosBridge::BridgePublisher<depthai_ros_msgs::SpatialDetectionArray, dai::SpatialImgDetections> detectionPublish(nNetDataQueues[0],
                                                                                                          pnh, 
                                                                                                          std::string("color/spatial_detections"),

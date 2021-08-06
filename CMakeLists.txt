@@ -290,8 +290,3 @@ dai_add_node(armchair_mobilenet_node src/mobilenet_publisher.cpp)
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
-
-#FIXME: Doesn't work
-#set(mobilenet_blob "${PROJECT_SOURCE_DIR}/resources/mobilenet-ssd_openvino_2021.2_6shave.blob")
-set(mobilenet_blob "${PROJECT_SOURCE_DIR}/resources/armchair.blob")
-target_compile_definitions(armchair_mobilenet_node PRIVATE BLOB_PATH="${mobilenet_blob}")

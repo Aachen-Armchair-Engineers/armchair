@@ -2,18 +2,42 @@
 <launch>
 
 <!-- TODO: Use launch options for model and virtual yes/no -->
+	<arg name="virtual_robot" default="true"/>
+
+<!-- Options are armchair, yolov4 and mobilenet -->
+	<arg name="model" default="armchair" /> 
 
 <!-- Choose either yolo (for testing) or mobilenet (for testing with the example network and the door application) -->
-	<!-- <include file="$(find depthai_examples)/launch/yolov4_publisher.launch"/> -->	
-	<include file="$(find armchair)/launch/mobile_publisher.launch"/>
+	<group if="$(eval model == 'yolov4')">
+		<include file="$(find depthai_examples)/launch/yolov4_publisher.launch"/>
+	</group>
 	
+<!-- Both the mobilenet example net and the door detection model use the same mobilenet launch file, the model arg distinction made here is still relevant for other files  -->
+	<group unless="$(eval model == 'yolov4')">
+		<include file="$(find armchair)/launch/mobile_publisher.launch">
+			<arg name="model" value="$(arg model)"/>
+		</include>
+	</group>
+
+
+<!-- Transformation between camera and robot coordinate system -->
 	<node pkg="tf" type="static_transform_publisher" name="root2oak_bcast" args= "0.0 -0.05 0.1 0.0 3.14 3.14 root oak-d_frame 100"/>
 
-<!-- TODO: Needed when using virtual robot? -->
-	<include file="$(find kinova_bringup)/launch/kinova_robot.launch"/>
 
-	<!-- <include file="$(find j2n6s300_moveit_config)/launch/j2n6s300_demo.launch" /> -->
-	<include file="$(find j2n6s300_moveit_config)/launch/j2n6s300_virtual_robot_demo.launch" />
+<!-- Use a real robot or a simulation? -->
+	<group if="$(arg virtual_robot)">
+		<include file="$(find j2n6s300_moveit_config)/launch/j2n6s300_virtual_robot_demo.launch" />
+	</group>
+
+	<group unless="$(arg virtual_robot)">
+		
+		<!-- TODO: Needed when using virtual robot? -->
+		<include file="$(find kinova_bringup)/launch/kinova_robot.launch"/>
+
+		<include file="$(find j2n6s300_moveit_config)/launch/j2n6s300_demo.launch" />
+
+	</group>
+
 
 	<node pkg="armchair" name="camera_interface" type="camera_interface.py" />
 	<node pkg="armchair" name="robot_interface" type="robot_interface.py" />
