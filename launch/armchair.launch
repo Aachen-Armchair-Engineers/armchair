@@ -1,7 +1,6 @@
 <?xml version="1.0"?>
 <launch>
 
-<!-- TODO: Use launch options for model and virtual yes/no -->
 	<arg name="virtual_robot" default="true"/>
 
 <!-- Options are armchair, yolov4 and mobilenet -->
@@ -31,7 +30,7 @@
 
 	<group unless="$(arg virtual_robot)">
 		
-		<!-- TODO: Needed when using virtual robot? -->
+		<!-- TODO: Is kinova_robot needed when using virtual robot? -->
 		<include file="$(find kinova_bringup)/launch/kinova_robot.launch"/>
 
 		<include file="$(find j2n6s300_moveit_config)/launch/j2n6s300_demo.launch" />
@@ -39,7 +38,10 @@
 	</group>
 
 
-	<node pkg="armchair" name="camera_interface" type="camera_interface.py" />
+	<node pkg="armchair" name="camera_interface" type="camera_interface.py">
+		<param name="model" value="$(arg model)" />
+	</node>
+	
 	<node pkg="armchair" name="robot_interface" type="robot_interface.py" />
 
 </launch>
