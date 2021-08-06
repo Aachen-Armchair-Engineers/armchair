@@ -36,11 +36,6 @@
 		<include file="$(find j2n6s300_moveit_config)/launch/j2n6s300_demo.launch" />
 
 	</group>
-
-
-	<node pkg="armchair" name="camera_interface" type="camera_interface.py">
-		<param name="model" value="$(arg model)" />
-	</node>
 	
 	<node pkg="armchair" name="robot_interface" type="robot_interface.py" />
 

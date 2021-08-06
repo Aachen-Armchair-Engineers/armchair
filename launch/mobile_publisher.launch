@@ -31,6 +31,10 @@
         <param name="camera_name"      value="$(arg camera_name)"     />
         <param name="camera_param_uri" value="$(arg camera_param_uri)"/>
         <param name="model" value="$(arg model)"/>
-    </node>            
+    </node>      
+
+	<node pkg="armchair" name="camera_interface" type="camera_interface.py">
+		<param name="model" value="$(arg model)" />
+	</node>      
 
 </launch>
