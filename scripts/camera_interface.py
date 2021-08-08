@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+'''
+This script sits inbetween the detection and robot control:
+mobilenet_publisher.cpp -> camera_interface.py -> robot_interface.py
+
+'''
 
 import rospy
 from std_msgs.msg import Header, ColorRGBA
@@ -14,6 +19,7 @@ labels = []
 target_label = ""
 
 def init_labels(model):
+    ''' Set the labels according to the model used '''
     global labels, target_label
 
     if model == 'armchair':
@@ -22,26 +28,10 @@ def init_labels(model):
 
     elif model == 'mobilenet':
         labels = [
-            "background",
-            "aeroplane",
-            "bicycle",
-            "bird",
-            "boat",
-            "bottle",
-            "bus",
-            "car",
-            "cat",
-            "chair",
-            "cow",
-            "diningtable",
-            "dog",
-            "horse",
-            "motorbike",
-            "person",
-            "pottedplant",
-            "sheep",
-            "sofa",
-            "train",
+            "background", "aeroplane", "bicycle", "bird", "boat",
+            "bottle", "bus", "car", "cat", "chair",
+            "cow", "diningtable", "dog", "horse", "motorbike",
+            "person", "pottedplant", "sheep", "sofa", "train",
             "tvmonitor"
         ]
         target_label = "bottle"
@@ -64,10 +54,32 @@ def init_labels(model):
     else:
         rospy.logerr("Invalid neuronal network selected, aborting")
 
-pub_handle = rospy.Publisher('/armchair/handle_position', PointStamped, queue_size=10)
-pub_markers = rospy.Publisher("/mobilenet_node_custom/color/markers", ImageMarkerArray, queue_size=1)
+pub_handle = rospy.Publisher(
+        '/armchair/handle_position',
+        PointStamped,
+        queue_size=10
+    )
+
+pub_markers = rospy.Publisher(
+        '/mobilenet_node_custom/color/markers',
+        ImageMarkerArray,
+        queue_size=1
+    )
 
 def callback(data):
+    '''
+    If one or mor e targeted objects are found, pulish it to
+    /armchair/handle_position
+
+    This will be visualized in rviz by a pink sphere
+    and is the position the robot will assume the handle to be.
+
+    Furthermore publish all detected bounding boxes and colour them:
+    Red: Target object(s)
+    Cyan: Normal object(s)
+
+    We use Foxglove Studio to visualize this
+    '''
 
     highest_score = 0.0
     point_stamped = PointStamped()
@@ -75,11 +87,11 @@ def callback(data):
 
     #TODO: figure out a more pythonic approach for the whole loop
     for detection in data.detections:
-       
+
         #Find best object
         #Alternatively use the clostest or manually select one
         if labels[detection.results[0].id] == target_label:
-            rospy.logdebug("%s (%2f, %2f, %2f)",
+            rospy.logdebug('%s (%2f, %2f, %2f)',
                     labels[detection.results[0].id],
                     detection.position.x,
                     detection.position.y,
@@ -88,7 +100,7 @@ def callback(data):
 
             if detection.results[0].score > highest_score:
                 point_stamped.header.stamp = rospy.Time.now()
-                point_stamped.header.frame_id = "oak-d_frame"
+                point_stamped.header.frame_id = 'oak-d_frame'
                 point_stamped.point = Point(
                         detection.position.x,
                         detection.position.z,
@@ -111,21 +123,19 @@ def callback(data):
         vertex_top *= 720/320
         vertex_bot *= 720/320
 
-        #FIXME: Assigning the values in the constructor caused issues before, see if that is fixable
-        color=ColorRGBA()
-        color.r=0
-        color.g=255
-        color.b=255
-        color.a=1
+        #Colour for normal bboxes
 
         #Highlight the BBoxes of the targets
-        if labels[detection.results[0].id] == target_label:
-            color.r=255
-            color.g=0
-            color.b=0
-            color.a=1
+        label = labels[detection.results[0].id]
+        if label == target_label:
+            color=ColorRGBA(255, 0, 0, 1)
 
         #TODO: Add more labels of special interest and (multiple) different colours for these
+        #elif label in highlight_lables.labels:
+        #    color = highlight_labels.colour[label]
+
+        else:
+            color=ColorRGBA(0, 255, 255, 1)
 
         markers.markers.append(
             ImageMarker(
@@ -146,21 +156,34 @@ def callback(data):
 
     pub_markers.publish(markers)
 
-    rospy.logdebug("-------")
+    rospy.logdebug('-------')
 
 def listener():
+    '''
+    Listen for spatial detections, filter them
+    and if an object of interest is found
+    pass the position along to the robot controller
+    '''
+
     rospy.init_node('camera_interface', anonymous=True)
 
-    model = rospy.get_param("/camera_interface/model")
+    #Set in mobile_publisher.launch
+    model = rospy.get_param('/camera_interface/model')
 
     #Use the matching labels
     init_labels(model)
 
     #And the matching topic
-    if model == "yolov4":
-        rospy.Subscriber("/yolov4_publisher/color/yolov4_Spatial_detections", SpatialDetectionArray, callback)
+    if model == 'yolov4':
+        topic = '/yolov4_publisher/color/yolov4_Spatial_detections'
     else:
-        rospy.Subscriber("/mobilenet_node_custom/color/spatial_detections", SpatialDetectionArray, callback)
+        topic = '/mobilenet_node_custom/color/spatial_detections'
+
+    rospy.Subscriber(
+            topic,
+            SpatialDetectionArray,
+            callback
+        )
 
     rospy.spin()
 
