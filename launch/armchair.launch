@@ -1,6 +1,5 @@
 <?xml version="1.0"?>
 <launch>
-
 	<arg name="virtual_robot" default="true"/>
 
 <!-- Options are armchair, yolov4 and mobilenet -->
@@ -9,6 +8,15 @@
 <!-- Choose either yolo (for testing) or mobilenet (for testing with the example network and the door application) -->
 	<group if="$(eval model == 'yolov4')">
 		<include file="$(find depthai_examples)/launch/yolov4_publisher.launch"/>
+	
+		<!--
+			Since we didn't make an extra launch file we have to start our node here
+			Our mobilenet script does this internally
+		-->
+		<node pkg="armchair" name="camera_interface" type="camera_interface.py">
+			<param name="model" value="$(arg model)" /> <!-- Pass the model name so the right labels can be selected -->
+		</node>      
+
 	</group>
 	
 <!-- Both the mobilenet example net and the door detection model use the same mobilenet launch file, the model arg distinction made here is still relevant for other files  -->
@@ -24,17 +32,15 @@
 
 
 <!-- Use a real robot or a simulation? -->
+	<!-- TODO: Is kinova_robot needed when using virtual robot? -->
+	<include file="$(find kinova_bringup)/launch/kinova_robot.launch"/>
+
 	<group if="$(arg virtual_robot)">
 		<include file="$(find j2n6s300_moveit_config)/launch/j2n6s300_virtual_robot_demo.launch" />
 	</group>
 
 	<group unless="$(arg virtual_robot)">
-		
-		<!-- TODO: Is kinova_robot needed when using virtual robot? -->
-		<include file="$(find kinova_bringup)/launch/kinova_robot.launch"/>
-
 		<include file="$(find j2n6s300_moveit_config)/launch/j2n6s300_demo.launch" />
-
 	</group>
 	
 	<node pkg="armchair" name="robot_interface" type="robot_interface.py" />

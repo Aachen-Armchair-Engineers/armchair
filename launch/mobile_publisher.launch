@@ -1,4 +1,9 @@
 <?xml version="1.0"?>
+
+<!--
+    This is basically just the depthai example launch file with our camera_interface node added
+-->
+
 <launch>
     <!-- <args for urdf/> -->
     <arg name="camera_model"          default="BW1098OAK"   /> <!-- 'zed' or 'zedm' -->
@@ -34,7 +39,7 @@
     </node>      
 
 	<node pkg="armchair" name="camera_interface" type="camera_interface.py">
-		<param name="model" value="$(arg model)" />
+		<param name="model" value="$(arg model)" /> <!-- Pass the model name so the right labels can be selected -->
 	</node>      
 
 </launch>
