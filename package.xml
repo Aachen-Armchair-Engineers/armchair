@@ -13,7 +13,7 @@
   <!-- One license tag required, multiple allowed, one license per tag -->
   <!-- Commonly used license strings: -->
   <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
-  <license>TODO</license>
+  <license>MIT</license>
 
 
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
@@ -55,13 +55,9 @@
   <build_depend>kinova_description</build_depend>
   <build_depend>kinova_bringup</build_depend>
 
-  <!-- TODO: Remove-->
-  <!---
-      <build_depend>depthai_examples</build_depend>     
-  -->
-
-
-
+  <!-- Only for testing with yolov4-->
+  <!-- <build_depend>depthai_examples</build_depend>      -->
+  
   <build_depend>depthai_ros_msgs</build_depend>
   
   <build_depend>roscpp</build_depend>
@@ -90,15 +86,10 @@
   <exec_depend>vision_msgs</exec_depend>
   <exec_depend>camera_info_manager</exec_depend>
   <exec_depend>depthai_bridge</exec_depend>
+  
   <!-- <depend>depthai_bridge</depend> -->
   <depend>cv_bridge</depend>
   <depend>message_filters</depend>
   
-  <build_depend>nodelet</build_depend>
-  <exec_depend>nodelet</exec_depend>
-
   <!-- The export tag contains other, unspecified, tags -->
-  <export>
-    <nodelet plugin="${prefix}/nodelet_plugins.xml" />
-  </export>
 </package>
