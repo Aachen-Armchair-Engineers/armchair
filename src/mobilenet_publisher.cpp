@@ -42,12 +42,13 @@ int main(int argc, char** argv){
         throw std::runtime_error("Couldn't find one of the parameters");
     }
 
-
+    //TODO: Relative paths
     if (modelName == "armchair"){
         nnPath = "/home/felix/ros_ws/src/armchair/resources/armchair.blob";
         width = 320;
         height = 320;
     }
+    //TODO: use the path to the depthai folder instead, so we dont need to copy it
     else if (modelName == "mobilenet"){
         nnPath = "/home/felix/ros_ws/src/armchair/resources/mobilenet-ssd_openvino_2021.2_6shave.blob";
         width = 300;
@@ -58,7 +59,6 @@ int main(int argc, char** argv){
     }
 
     ROS_INFO("Using nn at path %s", nnPath.c_str());
-    
 
     DoorDetectionPipeline detectionPipeline;
     detectionPipeline.initDepthaiDev(nnPath, width, height);
