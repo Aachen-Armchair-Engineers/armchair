@@ -123,7 +123,8 @@ def callback(data):
         #If we run the door detection publish additional information
         if target_label == "handle":
             doors = list( filter(lambda l : labels[l.results[0].id] not in ["", "handle"] , data.detections) )
-            analyse_handle_and_door(best_match, doors)
+            if doors:
+                analyse_handle_and_door(best_match, doors)
 
 
     #Create markers for all relevant object
@@ -203,19 +204,21 @@ def callback(data):
     rospy.logdebug('-------')
 
 def analyse_handle_and_door(handle, doors):
+    return
     '''
     TODO:
      - This assumes that the bounding boxes match perfectly
      - visualize information somewhere for easier debugging
      - no pressing down the handle or not descission yet
+     - Plane detection for non-perpendicular door normals
     '''
     rospy.logerr('Not implemented yet')
 
     #Check if handle is inside a door bounding_box
     doors = list( filter(
         lambda l :
-            l.bbox.center.x - l.detection.bbox.size_x/2  < handle.bbox.center.x <  l.bbox.center.x + l.detection.bbox.size_x/2 and 
-            l.bbox.center.y - l.detection.bbox.size_y/2  < handle.bbox.center.y <  l.bbox.center.y + l.detection.bbox.size_y/2 ,
+            l.bbox.center.x - l.bbox.size_x/2  < handle.bbox.center.x <  l.bbox.center.x + l.bbox.size_x/2 and 
+            l.bbox.center.y - l.bbox.size_y/2  < handle.bbox.center.y <  l.bbox.center.y + l.bbox.size_y/2 ,
             doors) )
 
     #Assume theres only one valid door at max:
@@ -225,15 +228,14 @@ def analyse_handle_and_door(handle, doors):
     door = doors[0]
     
     #Check which side the handle is closest too
-    if door.bbox.center.x - handle.bbox.center.x / door.detection.bbox.size_x > 0.60:
+    if (door.bbox.center.x - handle.bbox.center.x) / door.bbox.size_x > 0.60:
         rospy.logerr('left')
-    elif door.bbox.center.x - handle.bbox.center.x / door.detection.bbox.size_x < 1.00- 0.60:
+    elif (door.bbox.center.x - handle.bbox.center.x) / door.bbox.size_x < 1.00- 0.60:
         rospy.logerr('right')
-    elif door.bbox.center.y - handle.bbox.center.y / door.detection.bbox.size_y < 1.00- 0.60:
+    elif (door.bbox.center.y - handle.bbox.center.y) / door.bbox.size_y < 1.00- 0.60:
         rospy.logerr('bot')
     else:
-        rospy.logerr('undecidabele, aborting')
-        return
+        rospy.logerr('relative handle position unclear')
 
     #distance between handle and side thats further away -> radius (not needed explicitly)
     
@@ -241,6 +243,12 @@ def analyse_handle_and_door(handle, doors):
     #Hinge dir -> opening direction and mathematical positive direction
 
     #Hinge orientation (horizontal, vertical)
+    if 0.6 * handle.bbox.size_x > handle.bbox.size_y:
+        rospy.logerr('horizontal')
+    if 0.6 * handle.bbox.size_y > handle.bbox.size_x:
+        rospy.logerr('vertical')
+    else:
+        rospy.logerr('orientation undecidabele')
 
     #return default data for now
 
