@@ -1,5 +1,5 @@
 #include "ros/ros.h"
-
+#include <ros/package.h>
 #include <iostream>
 #include <cstdio>
 
@@ -42,15 +42,16 @@ int main(int argc, char** argv){
         throw std::runtime_error("Couldn't find one of the parameters");
     }
 
-    //TODO: Relative paths
     if (modelName == "armchair"){
-        nnPath = "/home/felix/ros_ws/src/armchair/resources/armchair.blob";
+        nnPath = ros::package::getPath("armchair");
+        nnPath += "/resources/armchair.blob";
         width = 320;
         height = 320;
     }
-    //TODO: use the path to the depthai folder instead, so we dont need to copy it
     else if (modelName == "mobilenet"){
-        nnPath = "/home/felix/ros_ws/src/armchair/resources/mobilenet-ssd_openvino_2021.2_6shave.blob";
+        nnPath = ros::package::getPath("depthai_examples");
+        nnPath += "/resources/mobilenet-ssd_openvino_2021.2_6shave.blob";
+        
         width = 300;
         height = 300;
     }
@@ -66,6 +67,8 @@ int main(int argc, char** argv){
     std::vector<std::shared_ptr<dai::DataOutputQueue>> nNetDataQueues = detectionPipeline.getExposedNnetStreams();;
 
     std::string color_uri = camera_param_uri + "/" + "color.yaml";
+
+    //TODO: this throws warnings
     std::string stereo_uri = camera_param_uri + "/" + "right.yaml";
 
     dai::rosBridge::ImageConverter rgbConverter(deviceName + "_rgb_camera_optical_frame", false);
