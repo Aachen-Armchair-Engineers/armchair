@@ -4,7 +4,7 @@ This script gets selected data from the  camera and moves the robot accordingly:
 camera_interface.py -> robot_interface.py -> Kinova Jaco
 '''
 
-from math import pi
+from math import pi, cos, sin
 import sys
 import copy
 import rospy
@@ -57,10 +57,7 @@ diplay_poses_publisher = rospy.Publisher(
 
 
 def flatten(t):
-    #rospy.logerr("BBBBBBBBBBBBBBBBBBBBBBBBB")
-    #rospy.logerr(f"Before: {t}")
     t = [item for sublist in t for item in sublist]
-    #rospy.logerr(f"After: {t}")
     return t
 
 
@@ -80,7 +77,6 @@ class RobotCommander:
     def visualize_waypoints(self, *waypoints):
         '''Send the path as pose array to make debugging the motion easier'''
 
-        rospy.logerr("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
         wps = flatten(waypoints)
 
         diplay_poses_publisher.publish( 
@@ -147,7 +143,7 @@ class RobotCommander:
         joint_goal = [0.0, 0.0, 0.0]
         self.gripper_group.go(joint_goal, wait=True)
 
-    def plan_linear(self, start_pose, goal_pose, eef=0.01):
+    def plan_linear(self, start_pose, goal_pose, interpolation_steps = 4, eef=0.01):
         waypoints = []
         waypoints.append(start_pose)
         waypoints.append(goal_pose)
@@ -182,8 +178,7 @@ class RobotCommander:
             
             #and convert it back into a pose
             waypoints.append(matrix_to_pose(current_matrix))
-
-
+            
         #Plan path
         (plan, fraction) = self.arm_group.compute_cartesian_path(
                                 waypoints,   # waypoints to follow
@@ -223,31 +218,37 @@ class RobotCommander:
         #Use fixed test point here anyways
         self.detected_handle_position = PointStamped(
                 Header(
-                    frame_id=self.planning_frame,
+                    frame_id='world', #self.planning_frame,
                     stamp=rospy.Time.now()
-                ), Point(-0.3, 0, 0.5)
+                ), Point(-0.6, 0.6, 0.4)
         )
 
 
-        rospy.loginfo("received plan signal for offset pos")
+        #Only used for visualising the waypoint
         start_pose = rc.arm_group.get_current_pose().pose
 
         #Grip from the front
         q = quaternion_from_euler(-pi/2, pi, pi/2)
         goal_orientation = Quaternion(q[0],q[1],q[2],q[3])
 
+        #The first waypoint is a little in front of the door handle
         goal_pose = Pose( position = self.detected_handle_position.point, orientation=goal_orientation )
-        goal_pose.position.y += 0.1
+        goal_pose.position.x += 0.1
 
-        plan, wp = rc.plan_linear(start_pose, goal_pose)
+        #Plan a point-to-point movement for the first movement, linear would make things fail
+        self.arm_group.set_pose_target(goal_pose)
+        (success, plan, time, error) = self.arm_group.plan()
+
+        wp = [start_pose, goal_pose]
+
         plans.append(plan)
         wps.append(wp)
 
         #The second movement
         goal_pose = Pose( position = self.detected_handle_position.point, orientation=goal_orientation )
-        goal_pose.position.y += 0.0
+        goal_pose.position.x += 0.0
 
-        plan, wp = rc.plan_linear(wp[-1], goal_pose)
+        plan, wp = self.plan_linear(wp[-1], goal_pose)
         plans.append(plan)
         wps.append(wp)
 
@@ -258,43 +259,53 @@ class RobotCommander:
         q = quaternion_from_euler(-pi/2, pi, pi/2)
         handle_pose = Pose(copy.deepcopy(p), Quaternion(q[0],q[1],q[2],q[3]))
 
-        p.y -= handle_radius
-        q = quaternion_from_euler(0,pi/2,0)
+        #TODO: not open the door completly perpendicular to the robot base axis
+        phi = pi/4
+        p.x -= handle_radius * sin(phi)
+        p.y -= handle_radius * cos(phi)
+
+        q = quaternion_from_euler(0,pi/2, 0)
         hinge_pose = Pose(p, Quaternion(q[0],q[1],q[2],q[3]))
 
-        plan, wp = rc.plan_arc(hinge_pose, handle_pose, pi / 2)
+        plan, wp = self.plan_arc(hinge_pose, handle_pose, pi / 4, 5)
         plans.append(plan)
         wps.append(wp)
 
         #Go back to the start position:
-        plan, wp = rc.plan_linear(wp[-1], wp[0])
+        plan, wp = self.plan_linear(wp[-1], wp[0])
         plans.append(plan)
         wps.append(wp)
 
         #show all the waypoints in rvit
-        rc.visualize_waypoints(flatten(wps))
+        self.visualize_waypoints(flatten(wps))
+        self.execute_plans(plans[0])
+        self.execute_plans(plans[1])
+        self.execute_plans(plans[2])
+        self.execute_plans(plans[3])
 
+        #Skip grippers and speed settings for now
+        return
 
         #Move
         self.arm_group.set_max_velocity_scaling_factor(0.3)
-        rc.execute_plans(plans[0])
+        self.execute_plans(plans[0])
 
         #Open the gripper
         self.open_hand()
 
         self.arm_group.set_max_velocity_scaling_factor(0.1)
-        rc.execute_plans(plans[1])
+        self.execute_plans(plans[1])
 
         #close the gripper 
         self.close_hand()
 
 
-        rc.execute_plans(plans[2])
+        self.execute_plans(plans[2])
         
         #Open the gripper again
         self.open_hand()
         
-        rc.execute_plans(plans[3])
+        self.execute_plans(plans[3])
 
         self.arm_group.set_max_velocity_scaling_factor(0.3)
 
