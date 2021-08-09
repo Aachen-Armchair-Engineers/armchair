@@ -7,13 +7,17 @@ mobilenet_publisher.cpp -> camera_interface.py -> robot_interface.py
 
 import rospy
 from std_msgs.msg import Header, ColorRGBA
-from geometry_msgs.msg import Point, PointStamped
+from geometry_msgs.msg import Point, PointStamped, Pose, Quaternion, Vector3
 from depthai_ros_msgs.msg import SpatialDetectionArray
 
-#For visualizing in foxglove
+#For visualizing in rviz and foxglove
 #See: https://foxglove.dev/blog/annotate-your-robots-camera-images-with-image-markers
-from visualization_msgs.msg import ImageMarker
+from visualization_msgs.msg import Marker, MarkerArray, ImageMarker
 from foxglove_msgs.msg import ImageMarkerArray
+
+#TODO: Crop and visualize the depth image in rviz:
+#See: https://gist.github.com/bhaskara/2400165
+from sensor_msgs.msg import PointCloud2
 
 labels = []
 target_label = ""
@@ -60,8 +64,21 @@ pub_handle = rospy.Publisher(
         queue_size=10
     )
 
-pub_markers = rospy.Publisher(
-        '/mobilenet_node_custom/color/markers',
+pub_door_data = rospy.Publisher(
+        '/armchair/door_data',
+        PointStamped, #TODO: Custom datatype
+        queue_size=10
+    )
+
+
+pub_rviz_markers = rospy.Publisher(
+        '/mobilenet_node_custom/color/rviz_markers',
+        MarkerArray,
+        queue_size=1
+    )
+
+pub_foxglove_markers = rospy.Publisher(
+        '/mobilenet_node_custom/color/foxglove_markers',
         ImageMarkerArray,
         queue_size=1
     )
@@ -81,36 +98,39 @@ def callback(data):
     We use Foxglove Studio to visualize this
     '''
 
-    highest_score = 0.0
-    point_stamped = PointStamped()
-    markers = ImageMarkerArray()
 
-    #TODO: figure out a more pythonic approach for the whole loop
-    for detection in data.detections:
+    #Find best detection
+    #Alternatively use the clostest or manually select one
+    handles = list(filter(lambda l : labels[l.results[0].id] == target_label, data.detections))
 
-        #Find best object
-        #Alternatively use the clostest or manually select one
-        if labels[detection.results[0].id] == target_label:
-            rospy.logdebug('%s (%2f, %2f, %2f)',
-                    labels[detection.results[0].id],
-                    detection.position.x,
-                    detection.position.y,
-                    detection.position.z
+    if handles:
+        best_match = max(handles, key=lambda h: h.results[0].score)
+        pub_handle.publish(
+            PointStamped(
+                Header(
+                    stamp = rospy.Time.now(),
+                    frame_id = 'oak-d_frame'
+                ),
+                #Swap the axis to make the transform in ros easier
+                Point(
+                    best_match.position.x,
+                    best_match.position.z,
+                    best_match.position.y
                 )
+            )
+        )
 
-            if detection.results[0].score > highest_score:
-                point_stamped.header.stamp = rospy.Time.now()
-                point_stamped.header.frame_id = 'oak-d_frame'
-                point_stamped.point = Point(
-                        detection.position.x,
-                        detection.position.z,
-                        detection.position.y
-                    )
-                highest_score = detection.results[0].score
+        #If we run the door detection publish additional information
+        if target_label == "handle":
+            doors = list( filter(lambda l : labels[l.results[0].id] not in ["", "handle"] , data.detections) )
+            analyse_handle_and_door(best_match, doors)
 
 
-        #Create markers for all relevant object
+    #Create markers for all relevant object
+    normal_markers = MarkerArray()
+    image_markers = ImageMarkerArray()
 
+    for detection in data.detections:
         #Calculate the positions of the bounding box edges
         vertex_left = detection.bbox.center.x - detection.bbox.size_x/2
         vertex_right = detection.bbox.center.x + detection.bbox.size_x/2
@@ -123,25 +143,51 @@ def callback(data):
         vertex_top *= 720/320
         vertex_bot *= 720/320
 
-        #Colour for normal bboxes
 
         #Highlight the BBoxes of the targets
         label = labels[detection.results[0].id]
         if label == target_label:
-            color=ColorRGBA(255, 0, 0, 1)
-
+            marker_color=ColorRGBA(255, 0, 0, 1)
         #TODO: Add more labels of special interest and (multiple) different colours for these
-        #elif label in highlight_lables.labels:
+        # elif label in highlight_lables.labels:
         #    color = highlight_labels.colour[label]
-
+        #Colour for normal bboxes
         else:
-            color=ColorRGBA(0, 255, 255, 1)
+            marker_color=ColorRGBA(0, 255, 255, 1)
 
-        markers.markers.append(
+        normal_markers.markers.append(
+            Marker(
+                header = Header(
+                    stamp = rospy.Time.now(),
+                    frame_id = 'oak-d_frame'
+                ),
+                id=len(normal_markers.markers),
+                ns='/armchair/rviz_markers',
+                type=2,
+                action=0,
+                pose=Pose(
+                    Point(
+                        detection.position.x,
+                        detection.position.z,
+                        detection.position.y
+                    ),
+                    Quaternion(0,0,0,1)
+                ),
+                scale=Vector3(0.05, 0.05, 0.05),
+                color=marker_color,
+                #If we dont let them decay we need to clean up after them
+                lifetime=rospy.Duration(0.3)
+            )
+        )
+
+        image_markers.markers.append(
             ImageMarker(
-                header=Header(),
+                header = Header(
+                    stamp = rospy.Time.now(),
+                    frame_id = 'oak-d_frame'
+                ),
                 type=ImageMarker.POLYGON,
-                outline_color=color,
+                outline_color=marker_color,
                 points=[
                     Point(vertex_left, vertex_top, 0),
                     Point(vertex_right, vertex_top, 0),
@@ -151,12 +197,32 @@ def callback(data):
             )
         )
 
-    if highest_score > 0.0:
-        pub_handle.publish(point_stamped)
-
-    pub_markers.publish(markers)
+    pub_rviz_markers.publish(normal_markers)
+    pub_foxglove_markers.publish(image_markers)
 
     rospy.logdebug('-------')
+
+def analyse_handle_and_door(handle, doors):
+    '''
+    TODO:
+     - This assumes that the bounding boxes match perfectly
+     - visualize information somewhere for easier debugging
+     - no pressing down yes/no descission yet
+    '''
+    rospy.logerr('Not implemented yet')
+
+    #Check if handle is inside a door bounding_box
+
+    #Check which side the handle is closest too (left, right, equal -> bot)
+    #distance between handle and side thats further away -> radius (not needed explicitly)
+
+    #Hinge pos -> further edge
+    #Hinge dir -> opening direction and mathematical positive direction
+
+    #Hinge orientation (horizontal, vertical)
+
+    #return default data for now
+    
 
 def listener():
     '''
