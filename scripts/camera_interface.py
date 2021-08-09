@@ -17,7 +17,7 @@ from foxglove_msgs.msg import ImageMarkerArray
 
 #TODO: Crop and visualize the depth image in rviz:
 #See: https://gist.github.com/bhaskara/2400165
-from sensor_msgs.msg import PointCloud2
+#from sensor_msgs.msg import PointCloud2
 
 labels = []
 target_label = ""
@@ -207,21 +207,45 @@ def analyse_handle_and_door(handle, doors):
     TODO:
      - This assumes that the bounding boxes match perfectly
      - visualize information somewhere for easier debugging
-     - no pressing down yes/no descission yet
+     - no pressing down the handle or not descission yet
     '''
     rospy.logerr('Not implemented yet')
 
     #Check if handle is inside a door bounding_box
+    doors = list( filter(
+        lambda l :
+            l.bbox.center.x - l.detection.bbox.size_x/2  < handle.bbox.center.x <  l.bbox.center.x + l.detection.bbox.size_x/2 and 
+            l.bbox.center.y - l.detection.bbox.size_y/2  < handle.bbox.center.y <  l.bbox.center.y + l.detection.bbox.size_y/2 ,
+            doors) )
 
-    #Check which side the handle is closest too (left, right, equal -> bot)
+    #Assume theres only one valid door at max:
+    if not doors:
+        return
+    
+    door = doors[0]
+    
+    #Check which side the handle is closest too
+    if door.bbox.center.x - handle.bbox.center.x / door.detection.bbox.size_x > 0.60:
+        rospy.logerr('left')
+    elif door.bbox.center.x - handle.bbox.center.x / door.detection.bbox.size_x < 1.00- 0.60:
+        rospy.logerr('right')
+    elif door.bbox.center.y - handle.bbox.center.y / door.detection.bbox.size_y < 1.00- 0.60:
+        rospy.logerr('bot')
+    else:
+        rospy.logerr('undecidabele, aborting')
+        return
+
     #distance between handle and side thats further away -> radius (not needed explicitly)
-
+    
     #Hinge pos -> further edge
     #Hinge dir -> opening direction and mathematical positive direction
 
     #Hinge orientation (horizontal, vertical)
 
     #return default data for now
+
+
+    # pub_door_data.publish(...)
     
 
 def listener():
