@@ -16,17 +16,16 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   depthai_ros_msgs
-
   camera_info_manager
   depthai_ros_msgs
   roscpp
+  roslib
   sensor_msgs
   std_msgs
   cv_bridge
   vision_msgs
   depthai_bridge
   message_filters
-  nodelet
 )
 
 ## System dependencies are found with CMake's conventions
@@ -129,7 +128,7 @@ find_package(depthai REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS depthai_ros_msgs roscpp sensor_msgs std_msgs camera_info_manager depthai_bridge vision_msgs cv_bridge message_filters
+  CATKIN_DEPENDS depthai_ros_msgs roscpp roslib sensor_msgs std_msgs camera_info_manager depthai_bridge vision_msgs cv_bridge message_filters
   DEPENDS OpenCV
 )
 
