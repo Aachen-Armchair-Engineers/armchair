@@ -1,9 +1,17 @@
 <?xml version="1.0"?>
 <launch>
-	<arg name="virtual_robot" default="true"/>
 
-<!-- Options are armchair, yolov4 and mobilenet -->
-	<arg name="model" default="armchair" /> 
+	<arg name="virtual_robot" default="true"/>
+	<arg name="model" default="armchair" />		<!-- Options are armchair, yolov4 and mobilenet -->
+
+
+<!-- Transformation between camera and robot coordinate system -->
+	<!--
+		This one is mounting the camera right in front of the roboter
+		<node pkg="tf" type="static_transform_publisher" name="root2oak_bcast" args= "0.0 -0.05 0.1 0.0 3.14 3.14 root oak-d_frame 100"/>
+	 -->
+	<node pkg="tf" type="static_transform_publisher" name="root2oak_bcast" args= "-0.42 0.18 0.10 0.0 3.14 3.14 root oak-d_frame 100"/>
+
 
 <!-- Choose either yolo (for testing) or mobilenet (for testing with the example network and the door application) -->
 	<group if="$(eval model == 'yolov4')">
@@ -26,23 +34,20 @@
 		</include>
 	</group>
 
-
-<!-- Transformation between camera and robot coordinate system -->
-	<node pkg="tf" type="static_transform_publisher" name="root2oak_bcast" args= "0.0 -0.05 0.1 0.0 3.14 3.14 root oak-d_frame 100"/>
-
-
 <!-- Use a real robot or a simulation? -->
-	<!-- TODO: Is kinova_robot needed when using virtual robot? -->
-	<include file="$(find kinova_bringup)/launch/kinova_robot.launch"/>
-
+	
 	<group if="$(arg virtual_robot)">
 		<include file="$(find j2n6s300_moveit_config)/launch/j2n6s300_virtual_robot_demo.launch" />
 	</group>
 
 	<group unless="$(arg virtual_robot)">
+		<!-- TODO: Is kinova_robot needed when using virtual robot? -->
+		<include file="$(find kinova_bringup)/launch/kinova_robot.launch"/>
+
 		<include file="$(find j2n6s300_moveit_config)/launch/j2n6s300_demo.launch" />
 	</group>
 	
 	<node pkg="armchair" name="robot_interface" type="robot_interface.py" />
+	<node pkg="topic_tools" type="relay" name="joint_state_relay" args="/j2n6s300_driver/out/joint_state /joint_states" />
 
 </launch>
