@@ -9,6 +9,9 @@ import rospy
 from std_msgs.msg import Header, ColorRGBA
 from geometry_msgs.msg import Point, PointStamped, Pose, Quaternion, Vector3
 from depthai_ros_msgs.msg import SpatialDetectionArray
+from tf.transformations import quaternion_from_euler
+
+from armchair.msg import DoorInfo
 
 #For visualizing in rviz and foxglove
 #See: https://foxglove.dev/blog/annotate-your-robots-camera-images-with-image-markers
@@ -64,9 +67,9 @@ pub_handle = rospy.Publisher(
         queue_size=10
     )
 
-pub_door_data = rospy.Publisher(
-        '/armchair/door_data',
-        PointStamped, #TODO: Custom datatype
+pub_door_info = rospy.Publisher(
+        '/armchair/door_info',
+        DoorInfo, #TODO: Custom datatype
         queue_size=10
     )
 
@@ -204,7 +207,6 @@ def callback(data):
     rospy.logdebug('-------')
 
 def analyse_handle_and_door(handle, doors):
-    return
     '''
     TODO:
      - This assumes that the bounding boxes match perfectly
@@ -212,7 +214,8 @@ def analyse_handle_and_door(handle, doors):
      - no pressing down the handle or not descission yet
      - Plane detection for non-perpendicular door normals
     '''
-    rospy.logerr('Not implemented yet')
+    rospy.logerr('Not working stable yet')
+    return
 
     #Check if handle is inside a door bounding_box
     doors = list( filter(
@@ -226,34 +229,76 @@ def analyse_handle_and_door(handle, doors):
         return
     
     door = doors[0]
-    
+
+
+    #Handle orientation (horizontal, vertical)
+    if 0.6 * handle.bbox.size_x > handle.bbox.size_y:
+        rospy.loginfo('horizontal')
+        _handle_orientaton = DoorInfo.HORIZONTAL
+
+    if 0.6 * handle.bbox.size_y > handle.bbox.size_x:
+        rospy.loginfo('vertical')
+        _handle_orientaton = DoorInfo.VERTICAL
+
+    else:
+        rospy.loginfo('orientation undecidabele')
+        _handle_orientaton = DoorInfo.UNDEFINED
+
+
     #Check which side the handle is closest too
+    #Hinge is always on the edge further away
+
     if (door.bbox.center.x - handle.bbox.center.x) / door.bbox.size_x > 0.60:
         rospy.logerr('left')
+        _handle_side = DoorInfo.LEFT
+
+        hinge_position = Point(handle.position.x - 2 * door.position.x, handle.position.y - 2 * door.position.y, door.position.z)
     elif (door.bbox.center.x - handle.bbox.center.x) / door.bbox.size_x < 1.00- 0.60:
         rospy.logerr('right')
+        _handle_side = DoorInfo.RIGHT
+
+        hinge_position = Point(handle.position.x + 2 * door.position.x, handle.position.y + 2 * door.position.y, door.position.z)
+
     elif (door.bbox.center.y - handle.bbox.center.y) / door.bbox.size_y < 1.00- 0.60:
-        rospy.logerr('bot')
+        rospy.logerr('down')
+        _handle_side = DoorInfo.DOWN
+
+        rospy.logwarn('Vertical hinges not implemented yet')
+
     else:
-        rospy.logerr('relative handle position unclear')
+        rospy.loginfo('relative handle position unclear')
+        _handle_side = DoorInfo.UNDEFINED
+
 
     #distance between handle and side thats further away -> radius (not needed explicitly)
-    
-    #Hinge pos -> further edge
-    #Hinge dir -> opening direction and mathematical positive direction
 
-    #Hinge orientation (horizontal, vertical)
-    if 0.6 * handle.bbox.size_x > handle.bbox.size_y:
-        rospy.logerr('horizontal')
-    if 0.6 * handle.bbox.size_y > handle.bbox.size_x:
-        rospy.logerr('vertical')
-    else:
-        rospy.logerr('orientation undecidabele')
-
-    #return default data for now
+    #Hinge pose    
+    _hinge_pose=Pose(
+        hinge_position,
+        quaternion_from_euler(0,pi/2,0)
+    ),
 
 
-    # pub_door_data.publish(...)
+    #Handle pose
+    _handle_pose=Pose(
+        handle.position,
+        quaternion_from_euler(-pi/2, pi, pi)
+
+    ),
+
+
+    pub_door_info.publish(
+        DoorInfo(
+            header = Header(
+                stamp = rospy.Time.now(),
+                frame_id = 'root'
+            ),
+            hinge_pose = _hinge_pose,
+            handle_pose = _handle_pose,
+            handle_orientation = _handle_orientaton,
+            handle_side = DoorInfo.RIGHT,
+        )
+    )
     
 
 def listener():

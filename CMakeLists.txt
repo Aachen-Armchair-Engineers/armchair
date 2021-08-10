@@ -26,6 +26,7 @@ find_package(catkin REQUIRED COMPONENTS
   vision_msgs
   depthai_bridge
   message_filters
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -70,11 +71,11 @@ find_package(depthai REQUIRED)
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  Command.msg
+  DoorInfo.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -91,10 +92,12 @@ find_package(depthai REQUIRED)
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs  # Or other packages containing msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  geometry_msgs
+
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -128,7 +131,7 @@ find_package(depthai REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS depthai_ros_msgs roscpp roslib sensor_msgs std_msgs camera_info_manager depthai_bridge vision_msgs cv_bridge message_filters
+  CATKIN_DEPENDS depthai_ros_msgs roscpp roslib sensor_msgs std_msgs camera_info_manager depthai_bridge vision_msgs cv_bridge message_filters message_runtime
   DEPENDS OpenCV
 )
 
