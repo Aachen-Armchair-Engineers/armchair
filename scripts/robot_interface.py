@@ -359,8 +359,7 @@ def listener():
     rospy.loginfo("Starting robot listening")
 
     rospy.Subscriber('armchair/handle_position', PointStamped, pos_callback)
-    rospy.Subscriber('armchair/cmd', Int32, btn_callback)
-    #rospy.Subscriber('armchair/cmd', Command, cmd_callback)
+    rospy.Subscriber('armchair/cmd', Command, cmd_callback)
 
     rospy.spin()
 
