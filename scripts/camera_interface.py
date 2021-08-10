@@ -214,7 +214,7 @@ def analyse_handle_and_door(handle, doors):
      - no pressing down the handle or not descission yet
      - Plane detection for non-perpendicular door normals
     '''
-    rospy.logerr('Not working stable yet')
+    rospy.logdebug('Not working stable yet')
     return
 
     #Check if handle is inside a door bounding_box
