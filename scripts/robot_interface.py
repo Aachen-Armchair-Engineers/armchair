@@ -17,14 +17,10 @@ import moveit_commander
 import moveit_msgs.msg
 from tf.transformations import quaternion_matrix, quaternion_from_euler, translation_matrix, concatenate_matrices, quaternion_from_matrix, translation_from_matrix, rotation_matrix
 from kinova_msgs.srv import *
+from armchair.msg import Command
 
 tfBuffer = None
 tfListener = None
-
-#TODO: Use this for the entire opening process
-#See: http://docs.ros.org/en/kinetic/api/moveit_tutorials/html/doc/move_group_python_interface/move_group_python_interface_tutorial.html#displaying-a-trajectory
-# https://answers.ros.org/question/278616/how-to-create-a-publisher-about-trajectory-path-then-show-it-in-rviz/
-# http://docs.ros.org/en/kinetic/api/moveit_tutorials/html/doc/move_group_python_interface/move_group_python_interface_tutorial.html
 
 def pose_to_matrix(pose):
     p = pose.position
@@ -135,15 +131,21 @@ class RobotCommander:
         rospy.logdebug("Gripper joints:")
         rospy.logdebug(self.gripper_group.get_current_joint_values())
 
-    def open_hand(self):
-        joint_goal = [0.5, 0.5, 0.5]
+    def close_gripper(self):
+        joint_goal = [0.75, 0.75, 0.75]
         self.gripper_group.go(joint_goal, wait=True)
 
-    def close_hand(self):
+        #self.gripper_group.set_named_target("Close")
+        #self.gripper_group.go(wait=True)
+
+    def open_gripper(self):
         joint_goal = [0.0, 0.0, 0.0]
         self.gripper_group.go(joint_goal, wait=True)
 
-    def plan_linear(self, start_pose, goal_pose, interpolation_steps = 4, eef=0.01):
+        #self.gripper_group.set_named_target("Open")
+        #self.gripper_group.go(wait=True)
+
+    def plan_linear(self, start_pose, goal_pose, eef=0.01):
         waypoints = []
         waypoints.append(start_pose)
         waypoints.append(goal_pose)
@@ -151,7 +153,7 @@ class RobotCommander:
         (plan, fraction) = self.arm_group.compute_cartesian_path(
                                 waypoints,   # waypoints to follow
                                 eef,         # eef_step
-                                0.00)        # jump_threshold
+                                5.00)        # jump_threshold
 
         return plan, waypoints
 
@@ -183,140 +185,59 @@ class RobotCommander:
         (plan, fraction) = self.arm_group.compute_cartesian_path(
                                 waypoints,   # waypoints to follow
                                 eef,         # eef_step
-                                0.00)        # jump_threshold
+                                5.00)        # jump_threshold
 
         return plan, waypoints
 
-    def plan_homing(self):
+    def home_arm(self):
         rospy.logwarn("NOT IMPLEMENTED YET")
-
-        #rosservice call /'${kinova_robotType}_driver'/in/home_arm
-        # rospy.wait_for_service("/j2n6s300/in/home_arm")
-        # try:
-        #    home = rospy.ServiceProxy("/j2n6s300/in/home_arm", HomeArm)
-        #    home()
-        #    return None
-        # except rospy.ServiceException, e:
-        #    print ("Service call failed: %s"%e)
-
-    def routine(self):
-        '''
-        Move swiftly right before the handle, then grip it slowly,
-        follow up by a circular movement opening the door
-        and move back into the neutral position
-        '''
-
-        plans = []
-        wps = []
-
-        #Move fast to the position before the handle
-        self.arm_group.set_max_velocity_scaling_factor(0.3)
-
-        if self.detected_handle_position is None:
-            rospy.logwarn("No door handle found")
-        
-        #Use fixed test point here anyways
-        self.detected_handle_position = PointStamped(
-                Header(
-                    frame_id='world', #self.planning_frame,
-                    stamp=rospy.Time.now()
-                ), Point(-0.6, 0.6, 0.4)
-        )
-
-
-        #Only used for visualising the waypoint
-        start_pose = rc.arm_group.get_current_pose().pose
-
-        #Grip from the front
-        q = quaternion_from_euler(-pi/2, pi, pi/2)
-        goal_orientation = Quaternion(q[0],q[1],q[2],q[3])
-
-        #The first waypoint is a little in front of the door handle
-        goal_pose = Pose( position = self.detected_handle_position.point, orientation=goal_orientation )
-        goal_pose.position.x += 0.1
-
-        #Plan a point-to-point movement for the first movement, linear would make things fail
-        self.arm_group.set_pose_target(goal_pose)
-        (success, plan, time, error) = self.arm_group.plan()
-
-        wp = [start_pose, goal_pose]
-
-        plans.append(plan)
-        wps.append(wp)
-
-        #The second movement
-        goal_pose = Pose( position = self.detected_handle_position.point, orientation=goal_orientation )
-        goal_pose.position.x += 0.0
-
-        plan, wp = self.plan_linear(wp[-1], goal_pose)
-        plans.append(plan)
-        wps.append(wp)
-
-        #Plan circular, door-opening motion        
-        handle_radius = 0.5 # hinge to handle
-
-        p = self.detected_handle_position.point
-        q = quaternion_from_euler(-pi/2, pi, pi/2)
-        handle_pose = Pose(copy.deepcopy(p), Quaternion(q[0],q[1],q[2],q[3]))
-
-        #TODO: not open the door completly perpendicular to the robot base axis
-        phi = pi/4
-        p.x -= handle_radius * sin(phi)
-        p.y -= handle_radius * cos(phi)
-
-        q = quaternion_from_euler(0,pi/2, 0)
-        hinge_pose = Pose(p, Quaternion(q[0],q[1],q[2],q[3]))
-
-        plan, wp = self.plan_arc(hinge_pose, handle_pose, pi / 4, 5)
-        plans.append(plan)
-        wps.append(wp)
-
-        #Go back to the start position:
-        plan, wp = self.plan_linear(wp[-1], wp[0])
-        plans.append(plan)
-        wps.append(wp)
-
-        #show all the waypoints in rvit
-        self.visualize_waypoints(flatten(wps))
-        self.execute_plans(plans[0])
-        self.execute_plans(plans[1])
-        self.execute_plans(plans[2])
-        self.execute_plans(plans[3])
-
-        #Skip grippers and speed settings for now
-        return
-
-        #Move
-        self.arm_group.set_max_velocity_scaling_factor(0.3)
-        self.execute_plans(plans[0])
-
-        #Open the gripper
-        self.open_hand()
-
-        self.arm_group.set_max_velocity_scaling_factor(0.1)
-        self.execute_plans(plans[1])
-
-        #close the gripper 
-        self.close_hand()
-
-
-        self.execute_plans(plans[2])
-        
-        #Open the gripper again
-        self.open_hand()
-        
-        self.execute_plans(plans[3])
-
-        self.arm_group.set_max_velocity_scaling_factor(0.3)
-
+        # rosservice call /'${kinova_robotType}_driver'/in/home_arm
+       
 
 rc = RobotCommander()
 
-def btn_callback(data):
+def cmd_callback(data):
     '''called once we send a signal manually to plan and move'''
 
+    rc.arm_group.set_max_velocity_scaling_factor(0.5)
+    # Fix a bug where the gripper movement would not finish which blocks executing new commands
+    rc.gripper_group.stop()
+
     rospy.loginfo(data)
-    if data.data == 0:
+
+    if data.cmd == Command.SETGOAL:
+        rc.saved_handle_position = rc.detected_handle_position
+
+    if data.cmd == Command.SETTESTGOAL:
+        rc.saved_handle_position = PointStamped(
+            Header(
+                frame_id=rc.planning_frame,
+                stamp=rospy.Time.now()
+            ), Point(-0.5, -0.6, 0.02)
+        )
+
+    elif data.cmd == Command.MOVEWITHOFFSET_P2P:
+        if rc.saved_handle_position is None:
+            rospy.logwarn("No door handle found")
+            return
+
+        rospy.loginfo("received plan signal for offset pos")
+        start_pose = rc.arm_group.get_current_pose().pose
+
+        #Grip from the front
+        #q = quaternion_from_euler(-pi/2, pi, pi/2)
+        q = quaternion_from_euler(-pi/2, pi, pi)
+        goal_orientation = Quaternion(q[0],q[1],q[2],q[3])
+
+        goal_pose = Pose( position = copy.deepcopy(rc.saved_handle_position.point), orientation=goal_orientation )
+        goal_pose.position.y += 0.1
+
+        rc.arm_group.set_pose_target(goal_pose)
+        (success, plan, time, error) = rc.arm_group.plan()
+        rc.execute_plans(plan)
+
+
+    elif data.cmd == Command.MOVE:
         if rc.detected_handle_position is None:
             rospy.logwarn("No door handle found")
             return
@@ -325,64 +246,95 @@ def btn_callback(data):
         start_pose = rc.arm_group.get_current_pose().pose
 
         #Grip from the front
-        q = quaternion_from_euler(-pi/2, pi, pi/2)
+        q = quaternion_from_euler(-pi/2, pi, pi)
         goal_orientation = Quaternion(q[0],q[1],q[2],q[3])
 
-        goal_pose = Pose( position = rc.detected_handle_position.point, orientation=goal_orientation )
-        goal_pose.position.y += 0.1
+        goal_pose = Pose( position = copy.deepcopy(rc.saved_handle_position.point), orientation=goal_orientation )
+        #goal_pose.position.y += 0.0
+
+        rospy.logerr([start_pose, goal_pose])
 
         plan, wps = rc.plan_linear(start_pose, goal_pose)
+        rc.visualize_waypoints(wps)
+        rc.wps = wps
+
+        rc.execute_plans(plan)
 
     
-    elif data.data == 1:
-        rospy.logerr("WIP")
+    elif data.cmd == Command.MOVEWITHOFFSET_LIN:
+        if rc.detected_handle_position is None:
+            rospy.logwarn("No door handle found")
+            return
 
-        #rospy.loginfo("received plan signal for final pos")
-        #rc.plan_with_offset(0.1)
+        rospy.loginfo("received plan signal for offset pos")
+        start_pose = rc.arm_group.get_current_pose().pose
 
-    elif data.data == 2:
-        rospy.logerr("WIP")
-        rc.plan_homing()
+        #Grip from the front
+        q = quaternion_from_euler(-pi/2, pi, pi)
+        goal_orientation = Quaternion(q[0],q[1],q[2],q[3])
 
-    elif data.data == 3:
-        rospy.loginfo("received go signal")
-        rc.go()
+        goal_pose = Pose( position = copy.deepcopy(rc.saved_handle_position.point), orientation=goal_orientation )
+        goal_pose.position.y += 0.1
+
+        rospy.logerr([start_pose, goal_pose])
+
+        plan, wps = rc.plan_linear(start_pose, goal_pose)
+        rc.visualize_waypoints(wps)
+        rc.wps = wps
+
+        rc.execute_plans(plan)
+
+    elif data.cmd == Command.OPENGRIPPER:
+        rospy.loginfo("Opening the grippre")
+        rc.open_gripper()
     
-    elif data.data == 10:
-        rospy.loginfo("opening")
-        rc.open_hand()
+    elif data.cmd == Command.CLOSEGRIPPER:
+        rospy.loginfo("Closing the gripper")
+        rc.close_gripper()
+
+    elif data.cmd == Command.OPENDOOR:
+        rospy.loginfo("Opening the door")
     
-    elif data.data == 11:
-        rospy.loginfo("closing")
-        rc.close_hand()
+        handle_radius = 0.66 # hinge to handle
 
-    elif data.data == 20:
-        rospy.logerr("WIP")
-        rc.routine()
+        #p = rc.detected_handle_position
+        #q = quaternion_from_euler(-pi/2, pi, pi/2)
+        #q = quaternion_from_euler(-pi/2, pi, pi)
+        #handle_pose = Pose(copy.deepcopy(p), Quaternion(q[0],q[1],q[2],q[3]))
+        handle_pose = rc.arm_group.get_current_pose().pose
 
-    elif data.data == 30:
-        rospy.logerr("WIP")
-    
-        handle_radius = 0.5 # hinge to handle
-
-        p = Point(-0.5, 0.2, 0.5)
-        q = quaternion_from_euler(-pi/2, pi, pi/2)
-        handle_pose = Pose(copy.deepcopy(p), Quaternion(q[0],q[1],q[2],q[3]))
-
-        p.y -= handle_radius
+        p = copy.deepcopy(handle_pose.position)
+        p.x += handle_radius
         q = quaternion_from_euler(0,pi/2,0)
         hinge_pose = Pose(p, Quaternion(q[0],q[1],q[2],q[3]))
 
-        plan, wps = rc.plan_arc(hinge_pose, handle_pose, pi / 2)
-
+        plan, wps = rc.plan_arc(hinge_pose, handle_pose, pi / 6)
         rc.visualize_waypoints(wps)
+        rc.wps = wps
+
+        rc.execute_plans(plan)
+
+    elif data.cmd == Command.REVERSE:
+        rospy.loginfo("Reverse last cartesian movement")
+        rospy.loginfo(rc.wps)
+        wps = rc.wps[::-1]  #reverse
+        rospy.loginfo(wps)
+        (plan, fraction) = rc.arm_group.compute_cartesian_path(
+                                wps,    # waypoints to follow
+                                0.01,   # eef_step
+                                5.00)   # jump_threshold
+        rc.visualize_waypoints(wps)
+        rc.wps = wps
+
+        rc.execute_plans(plan)
+
 
 def pos_callback(data):
     '''called every time we detect an object'''
 
     global tfBuffer
     #TODO: Try block?
-    #rc.detected_handle_position = tfBuffer.transform(data, "root", rospy.Duration(1.0))
+    rc.detected_handle_position = tfBuffer.transform(data, "root", rospy.Duration(1.0))
 
 
 def listener():
@@ -408,8 +360,10 @@ def listener():
 
     rospy.Subscriber('armchair/handle_position', PointStamped, pos_callback)
     rospy.Subscriber('armchair/cmd', Int32, btn_callback)
+    #rospy.Subscriber('armchair/cmd', Command, cmd_callback)
 
     rospy.spin()
+
 
 if __name__ == '__main__':
     try:
