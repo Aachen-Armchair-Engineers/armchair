@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 '''
-This script gets selected data from the  camera and moves the robot accordingly:
+This script gets selected data from the camera and moves the robot accordingly:
 camera_interface.py -> robot_interface.py -> Kinova Jaco
 '''
 
@@ -23,6 +23,7 @@ tfBuffer = None
 tfListener = None
 
 def pose_to_matrix(pose):
+    '''Convert a ROS TF Pose message into a transformation matrix'''
     p = pose.position
     p = [p.x, p.y, p.z]
     translation = translation_matrix(p)
@@ -32,12 +33,18 @@ def pose_to_matrix(pose):
     return concatenate_matrices(translation, rotation)
 
 def matrix_to_pose(matrix):
+    '''Convert a transformation matrix into a ROS TF Pose message'''
     translation = translation_from_matrix(matrix)
     translation = Point(translation[0], translation[1], translation[2])
     rotation = quaternion_from_matrix(matrix)
     rotation = Quaternion(rotation[0], rotation[1], rotation[2], rotation[3])
 
     return Pose(translation, rotation)
+
+def flatten(t):
+    '''Flattens a list of lists'''
+    t = [item for sublist in t for item in sublist]
+    return t
 
 display_trajectory_publisher = rospy.Publisher( 
        "/move_group/display_planned_path",
@@ -51,17 +58,11 @@ diplay_poses_publisher = rospy.Publisher(
         queue_size=10
     )
 
-
-def flatten(t):
-    t = [item for sublist in t for item in sublist]
-    return t
-
-
 class RobotCommander:
-    '''TODO'''
+    '''Helper class for planning, visualizing and executing trajectories of the robot arm'''
 
     def visualize_plans(self, *plans):
-        '''TODO'''
+        '''Publish the planned trajectories for visualization in rviz'''
         display_trajectory = moveit_msgs.msg.DisplayTrajectory()
         display_trajectory.trajectory_start = self.robot.get_current_state()
 
@@ -71,7 +72,7 @@ class RobotCommander:
         display_trajectory_publisher.publish(display_trajectory)
 
     def visualize_waypoints(self, *waypoints):
-        '''Send the path as pose array to make debugging the motion easier'''
+        '''Publish the planned waypoints (for the robot trajectory) for visualization in rviz'''
 
         wps = flatten(waypoints)
 
@@ -86,6 +87,7 @@ class RobotCommander:
             )
 
     def execute_plans(self, *plans):
+        '''Execute the previously planned trajectories'''
         for plan in plans:
             self.arm_group.execute(plan)
 
@@ -108,6 +110,7 @@ class RobotCommander:
 
 
     def get_info(self):
+        '''Display various information about the robot arm'''
         # We can get the name of the reference frame for this robot:
         planning_frame = self.arm_group.get_planning_frame()
         rospy.logdebug("============ Planning frame: %s" % planning_frame)
@@ -132,6 +135,12 @@ class RobotCommander:
         rospy.logdebug(self.gripper_group.get_current_joint_values())
 
     def close_gripper(self):
+        '''
+        Close the gripper
+        TODO:
+        There seems to be a bug in the kinova driver (or some other part) that prevents this motion to ever finish, which in turn prevents other plans to execute.
+        A workaround is to call gripper_group.stop() before executing another plan.
+        '''
         joint_goal = [0.75, 0.75, 0.75]
         self.gripper_group.go(joint_goal, wait=True)
 
@@ -139,6 +148,7 @@ class RobotCommander:
         #self.gripper_group.go(wait=True)
 
     def open_gripper(self):
+        '''Open the gripper'''
         joint_goal = [0.0, 0.0, 0.0]
         self.gripper_group.go(joint_goal, wait=True)
 
@@ -146,6 +156,10 @@ class RobotCommander:
         #self.gripper_group.go(wait=True)
 
     def plan_linear(self, start_pose, goal_pose, eef=0.01):
+        '''
+        Plan a linear motion from start_pose to goal_pose with interpolation points a maximum of eef meters apart.
+        Returns the plan as well as the calculated waypoints.
+        '''
         waypoints = []
         waypoints.append(start_pose)
         waypoints.append(goal_pose)
@@ -158,7 +172,11 @@ class RobotCommander:
         return plan, waypoints
 
     def plan_arc(self, hinge_pose, start_pose, angle, interpolation_steps = 10, eef=0.01):
-
+        '''
+        Plan a cirular motion from start_pose around hinge_pose with the given angle.
+        The arc is aproximated with interpolation_steps points with linear interpolation between these points a maximum of eef meters apart.
+        Returns the plan as well as the calculated waypoints.
+        '''
         # handle_pose = self.arm_group.get_current_pose().pose
 
         q = hinge_pose.orientation
@@ -197,7 +215,7 @@ class RobotCommander:
 rc = RobotCommander()
 
 def cmd_callback(data):
-    '''called once we send a signal manually to plan and move'''
+    '''Called once we send a signal manually to plan and move'''
 
     rc.arm_group.set_max_velocity_scaling_factor(0.5)
     # Fix a bug where the gripper movement would not finish which blocks executing new commands
@@ -206,9 +224,11 @@ def cmd_callback(data):
     rospy.loginfo(data)
 
     if data.cmd == Command.SETGOAL:
+        rospy.loginfo("Goal is set to handle position")
         rc.saved_handle_position = rc.detected_handle_position
 
     if data.cmd == Command.SETTESTGOAL:
+        rospy.loginfo("Goal is set to test point")
         rc.saved_handle_position = PointStamped(
             Header(
                 frame_id=rc.planning_frame,
@@ -217,11 +237,12 @@ def cmd_callback(data):
         )
 
     elif data.cmd == Command.MOVEWITHOFFSET_P2P:
+        rospy.loginfo("Moving arm into position with offset")
+        
         if rc.saved_handle_position is None:
-            rospy.logwarn("No door handle found")
+            rospy.logerr("No door handle found")
             return
 
-        rospy.loginfo("received plan signal for offset pos")
         start_pose = rc.arm_group.get_current_pose().pose
 
         #Grip from the front
@@ -229,20 +250,40 @@ def cmd_callback(data):
         q = quaternion_from_euler(-pi/2, pi, pi)
         goal_orientation = Quaternion(q[0],q[1],q[2],q[3])
 
-        goal_pose = Pose( position = copy.deepcopy(rc.saved_handle_position.point), orientation=goal_orientation )
+        goal_pose = Pose(position = copy.deepcopy(rc.saved_handle_position.point), orientation = goal_orientation)
         goal_pose.position.y += 0.1
 
         rc.arm_group.set_pose_target(goal_pose)
         (success, plan, time, error) = rc.arm_group.plan()
         rc.execute_plans(plan)
-
-
-    elif data.cmd == Command.MOVE:
+    
+    elif data.cmd == Command.MOVEWITHOFFSET_LIN:
+        rospy.loginfo("Moving arm linearly into position with offset")
         if rc.detected_handle_position is None:
-            rospy.logwarn("No door handle found")
+            rospy.logerr("No door handle found")
             return
 
-        rospy.loginfo("received plan signal for offset pos")
+        start_pose = rc.arm_group.get_current_pose().pose
+
+        #Grip from the front
+        q = quaternion_from_euler(-pi/2, pi, pi)
+        goal_orientation = Quaternion(q[0],q[1],q[2],q[3])
+
+        goal_pose = Pose(position = copy.deepcopy(rc.saved_handle_position.point), orientation = goal_orientation)
+        goal_pose.position.y += 0.1
+
+        plan, wps = rc.plan_linear(start_pose, goal_pose)
+        rc.visualize_waypoints(wps)
+        rc.wps = wps # save the waypoints so we can perform the reverse operation
+
+        rc.execute_plans(plan)
+
+    elif data.cmd == Command.MOVE:
+        rospy.loginfo("Moving arm linearly into grasping position")
+        if rc.detected_handle_position is None:
+            rospy.logerr("No door handle found")
+            return
+
         start_pose = rc.arm_group.get_current_pose().pose
 
         #Grip from the front
@@ -252,35 +293,9 @@ def cmd_callback(data):
         goal_pose = Pose( position = copy.deepcopy(rc.saved_handle_position.point), orientation=goal_orientation )
         #goal_pose.position.y += 0.0
 
-        rospy.logerr([start_pose, goal_pose])
-
         plan, wps = rc.plan_linear(start_pose, goal_pose)
         rc.visualize_waypoints(wps)
-        rc.wps = wps
-
-        rc.execute_plans(plan)
-
-    
-    elif data.cmd == Command.MOVEWITHOFFSET_LIN:
-        if rc.detected_handle_position is None:
-            rospy.logwarn("No door handle found")
-            return
-
-        rospy.loginfo("received plan signal for offset pos")
-        start_pose = rc.arm_group.get_current_pose().pose
-
-        #Grip from the front
-        q = quaternion_from_euler(-pi/2, pi, pi)
-        goal_orientation = Quaternion(q[0],q[1],q[2],q[3])
-
-        goal_pose = Pose( position = copy.deepcopy(rc.saved_handle_position.point), orientation=goal_orientation )
-        goal_pose.position.y += 0.1
-
-        rospy.logerr([start_pose, goal_pose])
-
-        plan, wps = rc.plan_linear(start_pose, goal_pose)
-        rc.visualize_waypoints(wps)
-        rc.wps = wps
+        rc.wps = wps # save the waypoints so we can perform the reverse operation
 
         rc.execute_plans(plan)
 
@@ -294,13 +309,10 @@ def cmd_callback(data):
 
     elif data.cmd == Command.OPENDOOR:
         rospy.loginfo("Opening the door")
-    
+
+        #TODO: auto detect this
         handle_radius = 0.66 # hinge to handle
 
-        #p = rc.detected_handle_position
-        #q = quaternion_from_euler(-pi/2, pi, pi/2)
-        #q = quaternion_from_euler(-pi/2, pi, pi)
-        #handle_pose = Pose(copy.deepcopy(p), Quaternion(q[0],q[1],q[2],q[3]))
         handle_pose = rc.arm_group.get_current_pose().pose
 
         p = copy.deepcopy(handle_pose.position)
@@ -316,9 +328,7 @@ def cmd_callback(data):
 
     elif data.cmd == Command.REVERSE:
         rospy.loginfo("Reverse last cartesian movement")
-        rospy.loginfo(rc.wps)
         wps = rc.wps[::-1]  #reverse
-        rospy.loginfo(wps)
         (plan, fraction) = rc.arm_group.compute_cartesian_path(
                                 wps,    # waypoints to follow
                                 0.01,   # eef_step
@@ -330,9 +340,8 @@ def cmd_callback(data):
 
 
 def pos_callback(data):
-    '''called every time we detect an object'''
+    '''Called every time we detect a handle'''
 
-    global tfBuffer
     #TODO: Try block?
     rc.detected_handle_position = tfBuffer.transform(data, "root", rospy.Duration(1.0))
 
